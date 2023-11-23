@@ -4,17 +4,12 @@
 pip install toolcall
 ```
 
-# `@openai_function`
+The most natural way to implement functions for OpenAI tool calling.
 
-An intuitive, robust and elegant way to implement functions for OpenAI tool calling.
-
-`@openai_function` turns your function into a dataclass.
-
+`@openai_function`:
 - **Argument validation of complex types** using Pydantic `BaseModel` under the hood.
-- **Automatic JSON Schema creation** using a mix of docstring parsing, Pydantic's `model_json_schema()`, and custom enhancements. See [Function JSON Schema](#function-definition-schema)
+- **Automatic JSON Schema creation** using a mix of docstring parsing, Pydantic's `model_json_schema()`, and custom enhancements.
 - **Utility methods for raw tool-call processing**
-
-With `@openai_function`, everything you need for implementing function calling is encapsulated in a single object.
 
 ```py
 from toolcall import openai_function
@@ -69,13 +64,15 @@ OpenaiFunction({
 })
 ```
 
+Everything you need for implementing function calling is encapsulated in a single object.
+
 ## How does it work?
 
-`@openai_function` does the following:
+`@openai_function`:
 1. Turns your function into a subclass of `pydantic.BaseModel` with your function's parameters as attributes. So, in the example above, running `get_stock_price(ticker="AAPL")` would create an instance of this model, validating the arguments.
 2. Creates the JSON schema shown above, and stores it as a class attribute
 3. Implements a `.execute()` instance method that passes the instance's attributes to the function you defined.
-4. Implements a `.run_tool_call()` class method that processes a raw tool call from OpenAI end-to-end, producing a tool message as the result, to send back to OpenAI
+4. Implements `.run_tool_call()` and `.run_function_call()` class methods that process a raw tool/function call from OpenAI end-to-end, producing a tool message as the result, to send back to OpenAI
 
 
 ## Getting Started
@@ -133,8 +130,8 @@ tool_response_message
 ```
 {
     'role': 'tool',
-    'tool_call_id': 'call_LD0WokrRan5j8B5UehILAdMq'
-    'content': '182.41 USD, -0.48 (0.26%) today',
+    'tool_call_id': 'call_LD0WokrRan5j8B5UehILAdMq',
+    'content': '182.41 USD, -0.48 (0.26%) today'
 }
 ```
 
@@ -186,134 +183,6 @@ tool_response_message
 
 # Tool Groups
 
-```py
-from toolcall import openai_tool_group
-def get_stock_price(ticker: str):
-    return '182.41 USD, -0.48 (0.26%) today'
-
-def get_weather(city: str):
-    return "Sunny, 72 degrees, 0% chance of rain"
-
-group = openai_tool_group([get_stock_price, get_weather])
-group
-```
-```
-OpenaiToolGroup([
-    {
-        "type": "function",
-        "function": {
-            "name": "get_stock_price",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "ticker"
-                ]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "city": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "city"
-                ]
-            }
-        }
-    }
-])
-```
-
-> Note: Use `group.tools` to get a list of the raw tool schemas to use in the `tools` argument to OpenAI
-
-#### Now, when we get a function tool call from OpenAI, the group can handle it.
-```py
-tool_call = {
-    "type": "function",
-    "id": "call_LD0WokrRan5j8B5UehILAdMq",
-    "function": {
-        "name": "get_weather",
-        "arguments": "{\"city\": \"Denver\"}",
-    },
-}
-
-tool_response_message = group.run_tool_call(tool_call, error_handler=True)
-tool_response_message
-```
-```
-{
-    'role': 'tool',
-    'tool_call_id': 'call_LD0WokrRan5j8B5UehILAdMq',
-    'content': 'Sunny, 72 degrees, 0% chance of rain'
-}
-```
-
-# Create your own ChatGPT, with automated tool call handling
-
-## Step 1. Conversation handler
-
-```py
-import os
-import json
-from toolcall import openai_tool_group, openai_function, OpenaiToolGroup
-from dataclasses import dataclass
-from openai import OpenAI
-from openai.types.chat.chat_completion import Choice
-from typing import Optional
-
-
-@dataclass
-class ChatGPTConversation:
-    model: str
-    client: OpenAI
-    tool_group: OpenaiToolGroup
-    messages: list[dict]
-
-    def chat(self):
-        result = self.get_openai_response()
-        self.add_message(result.message.model_dump(exclude_unset=True))
-
-        if result.message.tool_calls:
-            for call in result.message.tool_calls:
-                result_msg = self.tool_group.run_tool_call(call, error_handler=True)
-                self.add_message(result_msg)
-
-        if result.finish_reason == 'tool_calls':
-            self.chat()
-
-    def get_openai_response(self) -> Choice:
-        response = self.client.chat.completions.create(
-            messages=self.messages,
-            model=self.model,
-            tools=self.tool_group.tools,
-        )
-        return response.choices[0]
-
-    def add_message(self, message: dict):
-        print(json.dumps(message, indent=4))
-        self.messages.append(message)
-
-    def send_message(self, prompt: str):
-        self.add_message({"role": "user", "content": prompt})
-        self.chat()
-```
-
-> Here, `chat()` is a recursive method that continues sending API requests
-for as long as the response's `finish_reason='function_call'`.
-
-## Step 2. Define openai functions
 ```py
 def get_stock_price(ticker: str):
     "Get the stock price of a company, by ticker symbol."
@@ -389,12 +258,90 @@ OpenaiToolGroup([
 ])
 ```
 
-## Step 3. Create a new conversation
+
+> Note: Use `group.tools` to get a list of the raw tool schemas to use in the `tools` argument to OpenAI. Or `group.functions` to get only the functions, for the deprecated function calling API.
+
+#### Now, when we get a function tool call from OpenAI, the group can handle it.
+```py
+tool_call = {
+    "type": "function",
+    "id": "call_LD0WokrRan5j8B5UehILAdMq",
+    "function": {
+        "name": "get_weather",
+        "arguments": "{\"city\": \"Denver\"}",
+    },
+}
+
+tool_response_message = group.run_tool_call(tool_call, error_handler=True)
+tool_response_message
+```
+```
+{
+    'role': 'tool',
+    'tool_call_id': 'call_LD0WokrRan5j8B5UehILAdMq',
+    'content': 'Sunny and 75 degrees'
+}
+```
+
+# Create your own ChatGPT, with automated tool call handling
+
+## Step 1. Conversation handler
+
+```py
+import os
+import json
+from toolcall import openai_tool_group, openai_function, OpenaiToolGroup
+from dataclasses import dataclass
+from openai import OpenAI
+from openai.types.chat.chat_completion import Choice
+from typing import Optional
+
+
+@dataclass
+class ChatGPTConversation:
+    model: str
+    client: OpenAI
+    tool_group: OpenaiToolGroup
+    messages: list[dict]
+
+    def chat(self):
+        result = self.get_openai_response()
+        self.add_message(result.message.model_dump(exclude_unset=True))
+
+        if result.message.tool_calls:
+            for call in result.message.tool_calls:
+                result_msg = self.tool_group.run_tool_call(call, error_handler=True)
+                self.add_message(result_msg)
+
+        if result.finish_reason == 'tool_calls':
+            self.chat()
+
+    def get_openai_response(self) -> Choice:
+        response = self.client.chat.completions.create(
+            messages=self.messages,
+            model=self.model,
+            tools=self.tool_group.tools,
+        )
+        return response.choices[0]
+
+    def add_message(self, message: dict):
+        print(json.dumps(message, indent=4))
+        self.messages.append(message)
+
+    def send_message(self, prompt: str):
+        self.add_message({"role": "user", "content": prompt})
+        self.chat()
+```
+
+> Here, `chat()` is a recursive method that continues sending API requests
+for as long as the response's `finish_reason='function_call'`.
+
+## Step 2. Create a new conversation
 ```py
 chatgpt = ChatGPTConversation(
     model="gpt-4-1106-preview",
     client=OpenAI(api_key=os.environ["OPENAI_API_KEY"]),
-    tool_group=group,
+    tool_group=group, # using the group defined earlier
     messages=[
         dict(role="system", content="You are a helpful AI assistant."),
     ]
@@ -431,8 +378,8 @@ chatgpt.send_message(
     "content": "I'm enjoying my breakfast here in Denver. Can you list 3 fun things to do here, then give me a quick morning update?"
 }
 {
-    "content": "Denver is a vibrant city with plenty to offer! Here are three fun things you might enjoy:\n\n1. Explore the Denver Art Museum: The museum is one of the largest in the West and is famous for its collection of American Indian art, as well as its other diverse art collections.\n\n2. Visit the Denver Botanic Gardens: This urban oasis is a great place to enjoy the beauty of nature with a variety of themed gardens, a conservatory, and an amphitheater for seasonal events.\n\n3. Take a stroll through the historic Larimer Square: This historic district is Denver's oldest and most historic block, featuring unique shops, independent boutiques, an energetic nightlife, and some of the city's best restaurants.\n\nNow, let's get you the morning update with the current weather in Denver and the current date and time there. Please hold on a moment.",
     "role": "assistant",
+    "content": "Denver is a vibrant city with plenty to offer! Here are three fun things you might enjoy:\n\n1. Explore the Denver Art Museum: The museum is one of the largest in the West and is famous for its collection of American Indian art, as well as its other diverse art collections.\n\n2. Visit the Denver Botanic Gardens: This urban oasis is a great place to enjoy the beauty of nature with a variety of themed gardens, a conservatory, and an amphitheater for seasonal events.\n\n3. Take a stroll through the historic Larimer Square: This historic district is Denver's oldest and most historic block, featuring unique shops, independent boutiques, an energetic nightlife, and some of the city's best restaurants.\n\nNow, let's get you the morning update with the current weather in Denver and the current date and time there. Please hold on a moment.",
     "tool_calls": [
         {
             "id": "call_IvszwiKTgEqxp82BSxt8vyOV",
@@ -463,8 +410,8 @@ chatgpt.send_message(
     "content": "Friday, Nov. 10, 2023, 10:00 AM"
 }
 {
-    "content": "Your morning update for Denver is as follows:\n\n**Weather:** It's currently sunny and 75 degrees, a pleasant morning to enjoy your day!\n\n**Date and Time:** It's Friday, November 10, 2023, and the time is 10:00 AM.\n\nMake the most of your breakfast and have a fantastic time exploring all that Denver has to offer! If you need any more information or assistance, feel free to ask.",
-    "role": "assistant"
+    "role": "assistant",
+    "content": "Your morning update for Denver is as follows:\n\n**Weather:** It's currently sunny and 75 degrees, a pleasant morning to enjoy your day!\n\n**Date and Time:** It's Friday, November 10, 2023, and the time is 10:00 AM.\n\nMake the most of your breakfast and have a fantastic time exploring all that Denver has to offer! If you need any more information or assistance, feel free to ask."
 }
 ```
 
@@ -502,3 +449,141 @@ chatgpt.send_message(
     - Content response (**PART 2**)
 
 The response text above combines the content from API responses **2** and **4**.
+
+
+# Function Calling API
+
+**_(Deprecated by OpenAI)_**
+
+`openai_function` and `OpenaiToolGroup` also support the deprecated function-calling API. 
+
+- The function schema is accessible by `schema["function"]`, which can be passed inside a list to the `functions` argument in your OpenAI request. In an `OpenaiToolGroup`, this list is quickly accessible via the `functions` property.
+- Use `.run_function_call()` instead of `.run_tool_call()`, to process results.
+
+Example:
+
+```py
+message_from_openai = {
+    "role": "assistant",
+    "content": None,
+    "function_call": {
+        "name": "get_stock_price",
+        "arguments": "{\"ticker\": \"AAPL\"}",
+    },
+}
+function_call = message_from_openai["function_call"]
+```
+
+Use `run_function_call()`
+
+```py
+function_response_message = get_stock_price.run_function_call(function_call)
+function_response_message
+```
+```
+{
+    'role': 'function',
+    'name': 'get_stock_price',
+    'content': '182.41 USD, -0.48 (0.26%) today'
+}
+```
+
+## Create your own ChatGPT (function calling version)
+
+### Conversation handler
+
+```py
+# subclassing our previous version
+
+class ChatGPTFunctionConversation(ChatGPTConversation):
+
+    def get_openai_response(self) -> Choice:
+        response = self.client.chat.completions.create(
+            messages=self.messages,
+            model=self.model,
+            functions=self.tool_group.functions,  # Pass `functions` instead of `tools`
+        )
+        return response.choices[0]
+
+    def chat(self):
+        result = self.get_openai_response()
+        self.add_message(result.message.model_dump(exclude_unset=True))
+
+        # Handling just one function call, rather than a list of tool calls.
+        func_call = result.message.function_call
+        if func_call:
+            result_msg = self.tool_group.run_function_call(func_call, error_handler=True)
+            self.add_message(result_msg)
+
+        if result.finish_reason == 'function_call':
+            self.chat()
+```
+
+Using the same configuration as before, and sending the same messages.
+```py
+chatgpt = ChatGPTConversation(
+    model="gpt-4-1106-preview",
+    client=OpenAI(api_key=os.environ["OPENAI_API_KEY"]),
+    tool_group=group,
+    messages=[
+        dict(role="system", content="You are a helpful AI assistant."),
+    ]
+)
+```
+
+```py
+chatgpt.send_message("Hello, how are you?")
+```
+```
+{
+    "role": "user",
+    "content": "Hello, how are you?"
+}
+{
+    "content": "Hello! I'm just a computer program, so I don't have feelings, but I'm functioning optimally and ready to assist you. How can I help you today?",
+    "role": "assistant"
+}
+```
+
+```py
+chatgpt.send_message(
+    "I'm enjoying my breakfast here in Denver. Can you list 3 fun "
+    "things to do here, then give me a quick morning update?"
+)
+```
+```
+{
+    "role": "user",
+    "content": "I'm enjoying my breakfast here in Denver. Can you list 3 fun things to do here, then give me a quick morning update?"
+}
+{
+    "role": "assistant",
+    "content": "Denver offers a wide variety of activities to enjoy. Here are three fun things you could consider doing:\n\n1. **Visit the Denver Art Museum**: The museum is one of the largest art museums between the West Coast and Chicago and offers a diverse collection of artworks from around the world.\n\n2. **Explore the Denver Botanic Gardens**: With a variety of themed gardens, a conservatory, and an amphitheater for summer concerts, the Denver Botanic Gardens provides a beautiful and relaxing urban oasis.\n\n3. **Walk or Bike the Cherry Creek Trail**: This scenic path runs through the heart of Denver and is great for biking, walking, or even just taking a leisurely stroll. It will give you great views of the city and nature alike.\n\nFor your morning update, let's check the current weather in Denver and see what the day looks like for you. I'll also provide you with the current date and time to start your day off informed. Please give me a moment to gather that information for you.",
+    "function_call": {
+        "name": "get_weather",
+        "arguments": "{\"city\":\"Denver\"}"
+    }
+}
+{
+    "role": "function",
+    "name": "get_weather",
+    "content": "Sunny and 75 degrees"
+}
+{
+    "role": "assistant",
+    "content": null,
+    "function_call": {
+        "arguments": "{\"city\":\"Denver\"}",
+        "name": "get_current_datetime"
+    }
+}
+{
+    "role": "function",
+    "name": "get_current_datetime",
+    "content": "Friday, Nov. 10, 2023, 10:00 AM"
+}
+{
+    "role": "assistant",
+    "content": "Here's your morning update for Denver:\n\n- **Weather**: It's a beautiful sunny day with temperatures around 75 degrees Fahrenheit. Perfect weather for any outdoor activities!\n- **Date and Time**: It's currently Friday, November 10, 2023, at 10:00 AM.\n\nWhether you decide to spend the day indoors or outdoors, it looks like it's shaping up to be a lovely day in Denver. Enjoy your breakfast and have a great day!"
+}
+```

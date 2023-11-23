@@ -68,6 +68,12 @@ class FunctionTool(TypedDict):
     function: FunctionDefinition
 
 
+class FunctionMessage(TypedDict):
+    role: Literal["function"]
+    name: str
+    content: str
+
+
 class OpenaiFunction(BaseModel, Generic[P, R], ABC):
     schema: ClassVar[FunctionTool]
 
@@ -90,6 +96,14 @@ class OpenaiFunction(BaseModel, Generic[P, R], ABC):
         tool_call: dict | FunctionToolCallDict | FunctionToolCallModel,
         error_handler: bool | Callable[[Exception], str] = False,
     ) -> ToolCallResult:
+        ...
+
+    @classmethod
+    def run_function_call(
+        cls,
+        function_call: dict | FunctionCallDict | FunctionCallModel,
+        error_handler: bool | Callable[[Exception], str] = False,
+    ) -> FunctionMessage:
         ...
 
     def __getattr__(self, name: str) -> Any:
@@ -222,6 +236,12 @@ def openai_function(
                 cls, tool_call, error_handler: bool | Callable[[Exception], str] = False
             ):
                 return handle_tool_call(cls, tool_call, error_handler)
+
+            @classmethod
+            def run_function_call(
+                cls, function_call, error_handler: bool | Callable[[Exception], str] = False
+            ):
+                return handle_function_call(cls, function_call, error_handler)
 
 
         # If the function has positional-only params, `__call__` should handle them.
@@ -422,6 +442,34 @@ def handle_tool_call(
     }
 
 
+def handle_function_call(
+    openai_func: OpenaiFunction,
+    function_call: dict | FunctionCallDict | FunctionCallModel,
+    error_handler: bool | Callable[[Exception], str] = False,
+) -> FunctionMessage:
+    name, arguments = unpack_function_call(function_call)
+
+    if not error_handler:
+        parsed = json.loads(arguments)
+        result = openai_func(**parsed).execute()
+
+    else:
+        if not callable(error_handler):
+            error_handler = default_error_handler
+
+        try:
+            parsed = json.loads(arguments)
+            result = openai_func(**parsed).execute()
+        except Exception as e:
+            result = error_handler(e)
+
+    return {
+        "role": "function",
+        "name": name,
+        "content": str(result),
+    }
+
+
 def default_error_handler(e: Exception) -> str:
     if not isinstance(e, pydantic.ValidationError):
         return f"{type(e).__name__}: {e}"
@@ -445,6 +493,12 @@ class OpenaiToolGroup(dict[str, type[OpenaiFunction]]):
             func.schema for func in self.values()
         ]
 
+    @property
+    def functions(self) -> list[FunctionDefinition]:
+        return [
+            func.schema["function"] for func in self.values()
+        ]
+
     def add(self, function: Callable | type[OpenaiFunction]):
         if not isinstance(function, type(BaseModel)):
             function = openai_function(function)
@@ -464,6 +518,18 @@ class OpenaiToolGroup(dict[str, type[OpenaiFunction]]):
 
         return self[name].run_tool_call(tool_call, error_handler)
 
+    def run_function_call(
+        self,
+        function_call: dict | FunctionCallDict | FunctionCallModel,
+        error_handler: bool | Callable[[Exception], str] = False,
+    ) -> FunctionMessage:
+        if isinstance(function_call, dict):
+            name = function_call["name"]
+        else:
+            name = function_call.name
+
+        return self[name].run_function_call(function_call, error_handler)
+
     def __repr__(self):
         return f"OpenaiToolGroup({json.dumps(self.tools, indent=4)})"
 
@@ -479,6 +545,14 @@ def unpack_tool_call(
     func = tool_call.function
     return tool_call.id, func.name, func.arguments
 
+
+def unpack_function_call(
+    function_call: dict | FunctionCallDict | FunctionCallModel
+) -> tuple[str, str]:
+    "returns name, arguments"
+    if isinstance(function_call, dict):
+        return function_call["name"], function_call["arguments"]
+    return function_call.name, function_call.arguments
 
 
 def openai_tool_group(

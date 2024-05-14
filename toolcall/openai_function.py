@@ -75,7 +75,7 @@ class FunctionMessage(TypedDict):
 
 
 class OpenaiFunction(BaseModel, Generic[P, R], ABC):
-    schema: ClassVar[FunctionTool]
+    schema: ClassVar[FunctionTool]  # type:ignore
 
     def __init__(self, *args: P.args, **kwargs: P.kwargs):
         raise NotImplementedError("OpenaiFunction is an abstract class.")
@@ -210,7 +210,7 @@ def openai_function(
                 return f"OpenaiFunction({json.dumps(tool_schema, indent=4)})"
 
         class Model(Base, metaclass=BaseMeta):
-            schema: ClassVar[FunctionTool] = tool_schema
+            schema: ClassVar[FunctionTool] = tool_schema  # type:ignore
 
             def __init__(self, *args, **kwargs):
                 # Pydantic doesn't allow positionals, so we move args to kwargs.
@@ -283,7 +283,10 @@ def get_schema(
 ) -> FunctionDefinition:
     parameters = model.model_json_schema()
     parameters = order_properties(parameters, ["type", "properties", "required"])
-    parameters = remove_key_recursive(parameters, "title")
+
+    parameters.pop("title", None)
+    for value in parameters['properties'].values():
+        value.pop('title', None)
 
     if not annotate_null:
         for prop in parameters["properties"].values():
@@ -336,7 +339,7 @@ def get_schema(
     return order_properties(schema, ["name", "description", "parameters"])
 
 
-T = TypeVar("T", bound=Dict | TypedDict)
+T = TypeVar("T", bound=Any)
 
 
 def order_properties(items: T, start: list[str], end: list[str] | None = None) -> T:
@@ -367,20 +370,6 @@ def remove_null_annotations(prop: dict) -> None:
             prop["type"] = prop["anyOf"][0]["type"]
             del prop["anyOf"]
         
-
-def remove_key_recursive(item, key_to_remove) -> Any:
-    if isinstance(item, dict):
-        return {
-            key: remove_key_recursive(value, key_to_remove)
-            for key, value in item.items()
-            if key != key_to_remove
-        }
-
-    if isinstance(item, (list, tuple)):
-        return [remove_key_recursive(value, key_to_remove) for value in item]
-
-    return item
-
 
 def remove_params_from_docstring(docstring: str) -> str:
     sections = {
@@ -499,10 +488,7 @@ class OpenaiToolGroup(dict[str, type[OpenaiFunction]]):
             func.schema["function"] for func in self.values()
         ]
 
-    def add(self, function: Callable | type[OpenaiFunction]):
-        if not isinstance(function, type(BaseModel)):
-            function = openai_function(function)
-
+    def add(self, function: type[OpenaiFunction]):
         key = function.schema["function"]["name"]
         self[key] = cast(type[OpenaiFunction], function)
 
@@ -556,7 +542,7 @@ def unpack_function_call(
 
 
 def openai_tool_group(
-    functions: list[Callable | type[OpenaiFunction]] | None = None,
+    functions: list[type[OpenaiFunction]] | None = None,
 ) -> OpenaiToolGroup:
     group = OpenaiToolGroup()
 

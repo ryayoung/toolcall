@@ -16,7 +16,6 @@ from typing import (
     TypedDict,
     Literal,
     NotRequired,
-    Dict,
 )
 from abc import ABC
 import pydantic
@@ -24,31 +23,10 @@ from pydantic import (
     BaseModel,
     create_model,
 )
+from openai.types.chat import ChatCompletionMessageToolCall
 
 P = ParamSpec("P")
 R = TypeVar("R", covariant=True)
-
-
-class FunctionCallDict(TypedDict):
-    name: str
-    arguments: str
-
-
-class FunctionToolCallDict(TypedDict):
-    id: str
-    type: Literal["function"]
-    function: FunctionCallDict
-
-
-class FunctionCallModel(BaseModel):
-    name: str
-    arguments: str
-
-
-class FunctionToolCallModel(BaseModel):
-    id: str
-    type: Literal["function"]
-    function: FunctionCallModel
 
 
 class ToolCallResult(TypedDict):
@@ -68,76 +46,55 @@ class FunctionTool(TypedDict):
     function: FunctionDefinition
 
 
-class FunctionMessage(TypedDict):
-    role: Literal["function"]
-    name: str
-    content: str
-
-
 class OpenaiFunction(BaseModel, Generic[P, R], ABC):
     schema: ClassVar[FunctionTool]  # type:ignore
 
     def __init__(self, *args: P.args, **kwargs: P.kwargs):
         raise NotImplementedError("OpenaiFunction is an abstract class.")
 
-    def __call__(self) -> R:
-        ...
+    def __call__(self) -> R: ...
 
-    def execute(self) -> R:
-        ...
+    def execute(self) -> R: ...
 
     @property
-    def function(self) -> Callable[P, R]:
-        ...
+    def function(self) -> Callable[P, R]: ...
 
     @classmethod
     def run_tool_call(
         cls,
-        tool_call: dict | FunctionToolCallDict | FunctionToolCallModel,
+        tool_call: ChatCompletionMessageToolCall,
         error_handler: bool | Callable[[Exception], str] = False,
-    ) -> ToolCallResult:
-        ...
+    ) -> ToolCallResult: ...
 
-    @classmethod
-    def run_function_call(
-        cls,
-        function_call: dict | FunctionCallDict | FunctionCallModel,
-        error_handler: bool | Callable[[Exception], str] = False,
-    ) -> FunctionMessage:
-        ...
-
-    def __getattr__(self, name: str) -> Any:
-        ...
+    def __getattr__(self, name: str) -> Any: ...
 
 
 @overload
 def openai_function(
     __func: Callable[P, R],
-    /, 
-    *, 
+    /,
+    *,
     annotate_null: bool = False,
     schema_properties: dict | None = None,
     **kwargs,
-) -> type[OpenaiFunction[P, R]]:
-    ...
+) -> type[OpenaiFunction[P, R]]: ...
 
 
 @overload
 def openai_function(
-    __func: None = None, 
-    /, 
-    *, 
+    __func: None = None,
+    /,
+    *,
     annotate_null: bool = False,
     schema_properties: dict | None = None,
     **kwargs,
-) -> Callable[[Callable[P, R]], type[OpenaiFunction[P, R]]]:
-    ...
+) -> Callable[[Callable[P, R]], type[OpenaiFunction[P, R]]]: ...
 
 
 def openai_function(
-    __func: None | Callable[P, R] = None, 
-    /, 
-    *, 
+    __func: None | Callable[P, R] = None,
+    /,
+    *,
     annotate_null: bool = False,
     schema_properties: dict | None = None,
     **kwargs,
@@ -221,8 +178,7 @@ def openai_function(
 
                 super().__init__(**kwargs)
 
-            def execute(self):
-                ...  # Implemented conditionally, below
+            def execute(self): ...  # Implemented conditionally, below
 
             def __call__(self):
                 return self.execute()
@@ -236,13 +192,6 @@ def openai_function(
                 cls, tool_call, error_handler: bool | Callable[[Exception], str] = False
             ):
                 return handle_tool_call(cls, tool_call, error_handler)
-
-            @classmethod
-            def run_function_call(
-                cls, function_call, error_handler: bool | Callable[[Exception], str] = False
-            ):
-                return handle_function_call(cls, function_call, error_handler)
-
 
         # If the function has positional-only params, `__call__` should handle them.
         # Notice we aren't adjusting `__init__`, because the whole point of this class is
@@ -276,17 +225,17 @@ def openai_function(
 
 
 def get_schema(
-    fn: Callable, 
-    model: type[BaseModel], 
-    annotate_null: bool, 
+    fn: Callable,
+    model: type[BaseModel],
+    annotate_null: bool,
     schema_properties: dict | None,
 ) -> FunctionDefinition:
     parameters = model.model_json_schema()
     parameters = order_properties(parameters, ["type", "properties", "required"])
 
     parameters.pop("title", None)
-    for value in parameters['properties'].values():
-        value.pop('title', None)
+    for value in parameters["properties"].values():
+        value.pop("title", None)
 
     if not annotate_null:
         for prop in parameters["properties"].values():
@@ -363,13 +312,14 @@ def remove_null_annotations(prop: dict) -> None:
 
     if "anyOf" in prop:
         prop["anyOf"] = [
-            tp for tp in prop["anyOf"]
+            tp
+            for tp in prop["anyOf"]
             if not (isinstance(tp, dict) and tp.get("type") == "null")
         ]
         if len(prop["anyOf"]) == 1:
             prop["type"] = prop["anyOf"][0]["type"]
             del prop["anyOf"]
-        
+
 
 def remove_params_from_docstring(docstring: str) -> str:
     sections = {
@@ -405,10 +355,11 @@ def remove_params_from_docstring(docstring: str) -> str:
 
 def handle_tool_call(
     openai_func: OpenaiFunction,
-    tool_call: dict | FunctionToolCallDict | FunctionToolCallModel,
+    tool_call: ChatCompletionMessageToolCall,
     error_handler: bool | Callable[[Exception], str] = False,
 ) -> ToolCallResult:
-    id, _, arguments = unpack_tool_call(tool_call)
+    func = tool_call.function
+    id, arguments = tool_call.id, func.arguments
 
     if not error_handler:
         parsed = json.loads(arguments)
@@ -427,34 +378,6 @@ def handle_tool_call(
     return {
         "role": "tool",
         "tool_call_id": id,
-        "content": str(result),
-    }
-
-
-def handle_function_call(
-    openai_func: OpenaiFunction,
-    function_call: dict | FunctionCallDict | FunctionCallModel,
-    error_handler: bool | Callable[[Exception], str] = False,
-) -> FunctionMessage:
-    name, arguments = unpack_function_call(function_call)
-
-    if not error_handler:
-        parsed = json.loads(arguments)
-        result = openai_func(**parsed).execute()
-
-    else:
-        if not callable(error_handler):
-            error_handler = default_error_handler
-
-        try:
-            parsed = json.loads(arguments)
-            result = openai_func(**parsed).execute()
-        except Exception as e:
-            result = error_handler(e)
-
-    return {
-        "role": "function",
-        "name": name,
         "content": str(result),
     }
 
@@ -478,15 +401,11 @@ class OpenaiToolGroup(dict[str, type[OpenaiFunction]]):
 
     @property
     def tools(self) -> list[FunctionTool]:
-        return [
-            func.schema for func in self.values()
-        ]
+        return [func.schema for func in self.values()]
 
     @property
     def functions(self) -> list[FunctionDefinition]:
-        return [
-            func.schema["function"] for func in self.values()
-        ]
+        return [func.schema["function"] for func in self.values()]
 
     def add(self, function: type[OpenaiFunction]):
         key = function.schema["function"]["name"]
@@ -494,51 +413,14 @@ class OpenaiToolGroup(dict[str, type[OpenaiFunction]]):
 
     def run_tool_call(
         self,
-        tool_call: dict | FunctionToolCallDict | FunctionToolCallModel,
+        tool_call: ChatCompletionMessageToolCall,
         error_handler: bool | Callable[[Exception], str] = False,
     ) -> ToolCallResult:
-        if isinstance(tool_call, dict):
-            name = tool_call["function"]["name"]
-        else:
-            name = tool_call.function.name
-
+        name = tool_call.function.name
         return self[name].run_tool_call(tool_call, error_handler)
-
-    def run_function_call(
-        self,
-        function_call: dict | FunctionCallDict | FunctionCallModel,
-        error_handler: bool | Callable[[Exception], str] = False,
-    ) -> FunctionMessage:
-        if isinstance(function_call, dict):
-            name = function_call["name"]
-        else:
-            name = function_call.name
-
-        return self[name].run_function_call(function_call, error_handler)
 
     def __repr__(self):
         return f"OpenaiToolGroup({json.dumps(self.tools, indent=4)})"
-
-
-def unpack_tool_call(
-    tool_call: dict | FunctionToolCallDict | FunctionToolCallModel
-) -> tuple[str, str, str]:
-    "returns id, name, arguments"
-    if isinstance(tool_call, dict):
-        func = tool_call["function"]
-        return tool_call["id"], func["name"], func["arguments"]
-
-    func = tool_call.function
-    return tool_call.id, func.name, func.arguments
-
-
-def unpack_function_call(
-    function_call: dict | FunctionCallDict | FunctionCallModel
-) -> tuple[str, str]:
-    "returns name, arguments"
-    if isinstance(function_call, dict):
-        return function_call["name"], function_call["arguments"]
-    return function_call.name, function_call.arguments
 
 
 def openai_tool_group(

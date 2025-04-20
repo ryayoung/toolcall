@@ -24,28 +24,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries"
 ]
 dependencies = [
-    'pydantic>=2.0',
+    'pydantic',
     'docstring-parser',
-    'openai>=1.0.0',
+    'openai',
 ]
-
-# [project.urls]
-# Bug Tracker = "https://github.com/ryayoung/debuggpt/issues"
-
-# [project.scripts]
-# Uncomment and modify the lines below to create command-line scripts
-# that call specific functions in your package
-# my-script = "debuggpt:my_function"
-
-# [project.dependencies]
-# Add your package's dependencies here
-# pandas = "^1.3.3"
-
-# [project.dev-dependencies]
-# Add your package's development dependencies here
-# pytest = "^6.2.5"
-
-# [project.extras]
-# Uncomment and modify the lines below to define optional features and their dependencies
-# [project.extras.feature_name]
-# some_dependency = "^1.0.0"

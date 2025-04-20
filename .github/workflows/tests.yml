@@ -30,7 +30,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install black pyright pytest pytest-cov pytest-asyncio
         pip install openai
-        pip install .
+        pip install -e .
 
     - name: Run Black formatting check
       run: black --check .

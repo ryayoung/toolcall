@@ -1,589 +1,1750 @@
-# OpenAI Functions
+# toolcall
+
+[![PyPI](https://img.shields.io/pypi/v/toolcall)](https://pypi.org/project/toolcall/)
+[![Tests](https://github.com/ryayoung/toolcall/actions/workflows/tests.yml/badge.svg)](https://github.com/ryayoung/toolcall/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/ryayoung/toolcall/branch/main/graph/badge.svg)](https://codecov.io/gh/ryayoung/toolcall)
+[![License](https://img.shields.io/github/license/ryayoung/toolcall)](https://github.com/ryayoung/toolcall/blob/main/LICENSE)
+[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Pyright](https://img.shields.io/badge/type%20checker-pyright-blue)](https://github.com/microsoft/pyright)
+
+
+*The agentic framework for building without an agentic framework.*
 
 ```
 pip install toolcall
 ```
 
-The most natural way to implement functions for OpenAI tool calling.
+`toolcall` provides function-tool primitives that enhance (**without
+loss of control** over) the process of manually defining your own function tools,
+handling calls to them, and dynamically dispatching calls across a group of tools, with
+**static type safety**.
 
-`@openai_function`:
-- **Argument validation of complex types** using Pydantic `BaseModel` under the hood.
-- **Automatic JSON Schema creation** using a mix of docstring parsing, Pydantic's `model_json_schema()`, and custom enhancements.
-- **Utility methods for raw tool-call processing**
+---
 
-```py
-from toolcall import openai_function
-from typing import Literal
-import json
+*Who are you?*
 
-@openai_function
-def get_stock_price(ticker: str, currency: Literal["USD", "EUR"] = "USD"):
-    """
-    Get the stock price of a company, by ticker symbol
-
-    Parameters
-    ----------
-    ticker
-        The ticker symbol of the company
-    currency
-        The currency to use
-    """
-    return f"182.41 {currency}, -0.48 (0.26%) today"
+- You want a framework to handle tool orchestration and control-flow for you:
+    - ⛔ Do **not** use `toolcall`. There are plenty of good frameworks out there.
+- You define, dispatch, and handle function tool calls yourself:
+    - ✅ You **should** be using `toolcall`. It will make your life easier.
 
 
-get_stock_price
-```
-```json
-OpenaiFunction({
-    "type": "function",
-    "function": {
-        "name": "get_stock_price",
-        "description": "Get the stock price of a company, by ticker symbol",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "ticker": {
-                    "type": "string",
-                    "description": "The ticker symbol of the company"
-                },
-                "currency": {
-                    "type": "string",
-                    "description": "The currency to use",
-                    "enum": [
-                        "USD",
-                        "EUR"
-                    ],
-                    "default": "USD"
-                }
-            },
-            "required": [
-                "ticker"
-            ]
-        }
-    }
-})
-```
+## Learn-by-example Documentation
 
-Everything you need for implementing function calling is encapsulated in a single object.
+Below is one end-to-end tool-calling workflow built with `toolcall`, in several variations.
 
-## How does it work?
+### 1. Manual tool call -> handler dispatch (no tool group)
 
-`@openai_function`:
-1. Turns your function into a subclass of `pydantic.BaseModel` with your function's parameters as attributes. So, in the example above, running `get_stock_price(ticker="AAPL")` would create an instance of this model, validating the arguments.
-2. Creates the JSON schema shown above, and stores it as a class attribute
-3. Implements a `.execute()` instance method that passes the instance's attributes to the function you defined.
-4. Implements `.run_tool_call()` and `.run_function_call()` class methods that process a raw tool/function call from OpenAI end-to-end, producing a tool message as the result, to send back to OpenAI
+> [!CAUTION]
+> 
+> This is **not** recommended, unless you only have 1 tool, or each tool's handler has different
+input/output context type requirements, which is unlikely for most use cases.
 
+<details><summary>OpenAI - Chat Completions API</summary>
 
-## Getting Started
-
-#### Get OpenAI function definition schema
-```py
-get_stock_price.schema
-```
-```
-{'type': 'function', 'function': {'name': 'get_stock_price', 'description': 'Get the stock price of a company, by ticker symbol', 'parameters': {'type': 'object', 'properties': {'ticker': {'type': 'string', 'description': 'The ticker symbol of the company'}, 'currency': {'type': 'string', 'description': 'The currency to use', 'enum': ['USD', 'EUR'], 'default': 'USD'}}, 'required': ['ticker']}}}
-```
-
-#### Instantiate our pydantic model, validating arguments
-
-```py
-validated_function_call = get_stock_price(ticker="AAPL")
-```
-
-#### Execute the function, with already-validated arguments
-```py
-validated_function_call.execute()
-```
-```
-'182.41 USD, -0.48 (0.26%) today'
-```
-
-## End-to-End Tool Call Processing, with Error Handling
-
-When an OpenAI model chooses to call the `get_stock_price` function we defined, it sends us a message like this.
-```py
-message_from_openai = {
-    "role": "assistant",
-    "content": None,
-    "tool_calls": [
-        {
-            "type": "function",
-            "id": "call_LD0WokrRan5j8B5UehILAdMq",
-            "function": {
-                "name": "get_stock_price",
-                "arguments": "{\"ticker\": \"AAPL\"}"
-            },
-        }
-    ]
-}
-
-tool_call = message_from_openai["tool_calls"][0]
-```
-
-Our `get_stock_price` has a utility classmethod, `run_tool_call`, to handle this elegantly.
-
-```py
-tool_response_message = get_stock_price.run_tool_call(tool_call)
-tool_response_message
-```
-```
-{
-    'role': 'tool',
-    'tool_call_id': 'call_LD0WokrRan5j8B5UehILAdMq',
-    'content': '182.41 USD, -0.48 (0.26%) today'
-}
-```
-
-This method handles all the boilerplate for you:
-- Keeping track of the tool call `id`
-- Parsing JSON
-- Passing arguments to your function model for Pydantic validation
-- Executing your function with the validated arguments
-- Wrapping the result in a response message
-
-### It also makes error handling easy
-
-The `run_tool_call()` method accepts an `error_handler` argument: a callback function that takes an exception and returns a string to send back to OpenAI, documenting the error.
-
-Pass `error_handler=True` to use the default handler.
-
-Consider this example, where we receive incorrect types:
-
-```py
-bad_tool_call = {
-    "type": "function",
-    "id": "call_LD0WokrRan5j8B5UehILAdMq",
-    "function": {
-        "name": "get_stock_price",
-        "arguments": "{\"ticker\": 5, \"currency\": \"FOOBAR\"}"
-    },
-}
-
-tool_response_message = get_stock_price.run_tool_call(bad_tool_call, error_handler=True)
-tool_response_message
-```
-```
-{
-   'role': 'tool',
-   'tool_call_id': 'call_LD0WokrRan5j8B5UehILAdMq',
-   'content': 
-      'Validation failed for the following parameters
-
-      ticker:
-        Input: 5
-        Error: Input should be a valid string
-
-      currency:
-        Input: 'FOOBAR'
-        Error: Input should be 'USD' or 'EUR'
-      ',
-}
-```
-
-# Tool Groups
-
-```py
-def get_stock_price(ticker: str):
-    "Get the stock price of a company, by ticker symbol."
-    return "182.41 USD, −0.48 (0.26%) today"
-
-def get_weather(city: str):
-    "Get the current weather in a city."
-    return "Sunny and 75 degrees"
-
-def get_current_datetime(city: str):
-    "Get the current date and time in a city."
-    return "Friday, Nov. 10, 2023, 10:00 AM"
-
-group = openai_tool_group([get_stock_price, get_weather, get_current_datetime])
-group
-```
-```
-OpenaiToolGroup([
-    {
-        "type": "function",
-        "function": {
-            "name": "get_stock_price",
-            "description": "Get the stock price of a company, by ticker symbol.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "ticker": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "ticker"
-                ]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "description": "Get the current weather in a city.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "city": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "city"
-                ]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_current_datetime",
-            "description": "Get the current date and time in a city.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "city": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "city"
-                ]
-            }
-        }
-    }
-])
-```
-
-
-> Note: Use `group.tools` to get a list of the raw tool schemas to use in the `tools` argument to OpenAI. Or `group.functions` to get only the functions, for the deprecated function calling API.
-
-#### Now, when we get a function tool call from OpenAI, the group can handle it.
-```py
-tool_call = {
-    "type": "function",
-    "id": "call_LD0WokrRan5j8B5UehILAdMq",
-    "function": {
-        "name": "get_weather",
-        "arguments": "{\"city\": \"Denver\"}",
-    },
-}
-
-tool_response_message = group.run_tool_call(tool_call, error_handler=True)
-tool_response_message
-```
-```
-{
-    'role': 'tool',
-    'tool_call_id': 'call_LD0WokrRan5j8B5UehILAdMq',
-    'content': 'Sunny and 75 degrees'
-}
-```
-
-# Create your own ChatGPT, with automated tool call handling
-
-## Step 1. Conversation handler
-
-```py
+```python
 import os
 import json
-from toolcall import openai_tool_group, openai_function, OpenaiToolGroup
-from dataclasses import dataclass
+from typing import Literal
 from openai import OpenAI
-from openai.types.chat.chat_completion import Choice
-from typing import Optional
+from openai.types.chat.chat_completion_message_param import (
+    ChatCompletionMessageParam,
+)
+from toolcall.openai.core import (
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
+)
 
+openai_client = OpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
 
-@dataclass
-class ChatGPTConversation:
-    model: str
-    client: OpenAI
-    tool_group: OpenaiToolGroup
-    messages: list[dict]
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
 
-    def chat(self):
-        result = self.get_openai_response()
-        self.add_message(result.message.model_dump(exclude_unset=True))
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
 
-        if result.message.tool_calls:
-            for call in result.message.tool_calls:
-                result_msg = self.tool_group.run_tool_call(call, error_handler=True)
-                self.add_message(result_msg)
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
 
-        if result.finish_reason == 'tool_calls':
-            self.chat()
-
-    def get_openai_response(self) -> Choice:
-        response = self.client.chat.completions.create(
-            messages=self.messages,
-            model=self.model,
-            tools=self.tool_group.tools,
-        )
-        return response.choices[0]
-
-    def add_message(self, message: dict):
-        print(json.dumps(message, indent=4))
-        self.messages.append(message)
-
-    def send_message(self, prompt: str):
-        self.add_message({"role": "user", "content": prompt})
-        self.chat()
-```
-
-> Here, `chat()` is a recursive method that continues sending API requests
-for as long as the response's `finish_reason='function_call'`.
-
-## Step 2. Create a new conversation
-```py
-chatgpt = ChatGPTConversation(
-    model="gpt-4-1106-preview",
-    client=OpenAI(api_key=os.environ["OPENAI_API_KEY"]),
-    tool_group=group, # using the group defined earlier
-    messages=[
-        dict(role="system", content="You are a helpful AI assistant."),
+def main():
+    conversation: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
     ]
-)
-```
+    conversation = assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
 
-## Step 4. Exchange messages
+# Simple style of tool definition:
+class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
 
-**You'll need to use Jupyter notebooks (or interactive terminal) for this**
+    city: str
+    """City to get the weather for."""
 
-```py
-chatgpt.send_message("Hello, how are you?")
-```
-```
-{
-    "role": "user",
-    "content": "Hello, how are you?"
-}
-{
-    "role": "assistant",
-    "content": "Hello! I'm just a computer program, so I don't have feelings, but I'm ready and functioning properly. How can I assist you today?"
-}
-```
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
 
-```py
-chatgpt.send_message(
-    "I'm enjoying my breakfast here in Denver. Can you list 3 fun "
-    "things to do here, then give me a quick morning update?"
-)
-```
-```
-{
-    "role": "user",
-    "content": "I'm enjoying my breakfast here in Denver. Can you list 3 fun things to do here, then give me a quick morning update?"
-}
-{
-    "role": "assistant",
-    "content": "Denver is a vibrant city with plenty to offer! Here are three fun things you might enjoy:\n\n1. Explore the Denver Art Museum: The museum is one of the largest in the West and is famous for its collection of American Indian art, as well as its other diverse art collections.\n\n2. Visit the Denver Botanic Gardens: This urban oasis is a great place to enjoy the beauty of nature with a variety of themed gardens, a conservatory, and an amphitheater for seasonal events.\n\n3. Take a stroll through the historic Larimer Square: This historic district is Denver's oldest and most historic block, featuring unique shops, independent boutiques, an energetic nightlife, and some of the city's best restaurants.\n\nNow, let's get you the morning update with the current weather in Denver and the current date and time there. Please hold on a moment.",
-    "tool_calls": [
-        {
-            "id": "call_IvszwiKTgEqxp82BSxt8vyOV",
-            "function": {
-                "arguments": "{\"city\": \"Denver\"}",
-                "name": "get_weather"
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+# More explicit style:
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
             },
-            "type": "function"
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
         },
-        {
-            "id": "call_oG82zPuqS8V99an5y0hqwdKj",
-            "function": {
-                "arguments": "{\"city\": \"Denver\"}",
-                "name": "get_current_datetime"
-            },
-            "type": "function"
-        }
-    ]
-}
-{
-    "role": "tool",
-    "tool_call_id": "call_IvszwiKTgEqxp82BSxt8vyOV",
-    "content": "Sunny and 75 degrees"
-}
-{
-    "role": "tool",
-    "tool_call_id": "call_oG82zPuqS8V99an5y0hqwdKj",
-    "content": "Friday, Nov. 10, 2023, 10:00 AM"
-}
-{
-    "role": "assistant",
-    "content": "Your morning update for Denver is as follows:\n\n**Weather:** It's currently sunny and 75 degrees, a pleasant morning to enjoy your day!\n\n**Date and Time:** It's Friday, November 10, 2023, and the time is 10:00 AM.\n\nMake the most of your breakfast and have a fantastic time exploring all that Denver has to offer! If you need any more information or assistance, feel free to ask."
-}
+        "required": ["ticker", "exchange"],
+    }
+
+    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+def assistant_take_turn(
+    messages: list[ChatCompletionMessageParam],
+) -> list[ChatCompletionMessageParam]:
+    response = openai_client.chat.completions.create(
+        messages=messages,
+        model="gpt-4.1-mini",
+        tools=[
+            get_weather.model_tool_definition(api="chat.completions"),
+            StockPriceTool.model_tool_definition(api="chat.completions"),
+        ],
+    )
+    message = response.choices[0].message
+
+    message_param = message.model_dump(exclude_none=True, exclude_unset=True)
+    messages.append(message_param)  # pyright: ignore[reportArgumentType]
+
+    if not message.tool_calls:
+        return messages
+
+    for call in message.tool_calls:
+
+        if call.function.name == get_weather.model_tool_name():
+            result = get_weather.model_tool_run_tool_call(call, None)
+            tool_message = result.tool_message
+
+            if result.fail_reason == "explicit_handler_error":
+                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+
+        elif call.function.name == StockPriceTool.model_tool_name():
+            result = StockPriceTool.model_tool_run_tool_call(call, None)
+            tool_message = result.tool_message
+
+            if result.fail_reason is None:
+                context: float = result.context
+
+        else:
+            tool_message: ChatCompletionMessageParam = {
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": f"Function `{call.function.name}` not found.",
+            }
+        messages.append(tool_message)
+
+    return assistant_take_turn(messages)
+
+main()
 ```
 
-#### If we stitch together the `content` of each *assistant* message (2nd and last messages), we get a continuous block of response text:
+Output:
 
-> Sure, Denver offers many activities for a fun day out. Here are three fun things to do in Denver:
-> 
-> 1. **Visit the Denver Art Museum**: Recognized for its collection of American Indian Art and its impressive array of modern and contemporary pieces, the Denver Art Museum is a great place to get a dose of culture. The building itself is an architectural work of art.
-> 
-> 2. **Explore the Denver Botanic Gardens**: With a wide variety of plants from all corners of the world, as well as a conservatory and sunken amphitheater that hosts various concerts and events, the gardens provide a beautiful and tranquil escape from the city buzz.
-> 
-> 3. **Take a stroll in the LoDo Historic District**: Lower Downtown, or LoDo as it's affectionately known, is Denver's bustling district filled with late 19th and early 20th-century buildings. You can enjoy boutique shopping, a multitude of restaurants, and a vibrant nightlife.
-> 
-> For your morning update, let me provide you with the current weather in Denver and the status of the stock market. Just a moment while I gather this information for you.
-> 
-> Here's your morning update for Denver:
-> 
-> - **Weather**: It's a sunny day with a current temperature of 75 degrees Fahrenheit.
-> - **Stock Market (SPY)**: The SPDR S&P 500 ETF (SPY), a good indicator of the stock market's overall performance, is currently trading at $182.41 USD, with a slight decrease of 0.26% today.
-> 
-> Enjoy your breakfast and have a fantastic day exploring Denver! If you need any more assistance or information, feel free to ask.
+```
+--------------------------------------------------------------------------------
 
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
 
-#### This single response was made up of multiple API calls/responses:
-1. *Sent*:
-    - User prompt
-2. *Received*: 
-    - Content response (**PART 1**)
-    - Tool call to function: `get_weather`
-    - Tool call to function: `get_stock_price`
-3. *Sent*:
-    - Function result from: `get_weather`
-    - Function result from: `get_stock_price`
-4. *Received*:
-    - Content response (**PART 2**)
+--------------------------------------------------------------------------------
 
-The response text above combines the content from API responses **2** and **4**.
-
-
-# Function Calling API
-
-**_(Deprecated by OpenAI)_**
-
-`openai_function` and `OpenaiToolGroup` also support the deprecated function-calling API. 
-
-- The function schema is accessible by `schema["function"]`, which can be passed inside a list to the `functions` argument in your OpenAI request. In an `OpenaiToolGroup`, this list is quickly accessible via the `functions` property.
-- Use `.run_function_call()` instead of `.run_tool_call()`, to process results.
-
-Example:
-
-```py
-message_from_openai = {
-    "role": "assistant",
-    "content": None,
-    "function_call": {
-        "name": "get_stock_price",
-        "arguments": "{\"ticker\": \"AAPL\"}",
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_eC0HJwZsnk6N2SzaZBViJlah",
+      "function": {
+        "arguments": "{\"city\": \"San Francisco\", \"state\": \"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
     },
-}
-function_call = message_from_openai["function_call"]
+    {
+      "id": "call_MgtnVah214eFRSe5qJWnFqkz",
+      "function": {
+        "arguments": "{\"ticker\": \"AAPL\", \"exchange\": \"NASDAQ\"}",
+        "name": "get_stock_price"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_eC0HJwZsnk6N2SzaZBViJlah",
+  "content": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_MgtnVah214eFRSe5qJWnFqkz",
+  "content": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_woAZj5hAd7i21lolxoYhCYrL",
+      "function": {
+        "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_woAZj5hAd7i21lolxoYhCYrL",
+  "content": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "content": "The weather in San Francisco is currently not available, but nearby in Oakland, California, it is 30 degrees. Apple's stock price (AAPL) is currently trading at $100.",
+  "role": "assistant",
+  "annotations": []
 ```
 
-Use `run_function_call()`
+</details>
 
-```py
-function_response_message = get_stock_price.run_function_call(function_call)
-function_response_message
-```
-```
-{
-    'role': 'function',
-    'name': 'get_stock_price',
-    'content': '182.41 USD, -0.48 (0.26%) today'
-}
-```
 
-## Create your own ChatGPT (function calling version)
+<details><summary>OpenAI - Chat Completions API - Async</summary>
 
-### Conversation handler
+```python
+import os
+import json
+import asyncio
+from typing import Literal
+from openai import AsyncOpenAI
+from openai.types.chat.chat_completion_message_param import (
+    ChatCompletionMessageParam,
+)
+from toolcall.openai.aio import (
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
+)
 
-```py
-# subclassing our previous version
+openai_client = AsyncOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
 
-class ChatGPTFunctionConversation(ChatGPTConversation):
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
 
-    def get_openai_response(self) -> Choice:
-        response = self.client.chat.completions.create(
-            messages=self.messages,
-            model=self.model,
-            functions=self.tool_group.functions,  # Pass `functions` instead of `tools`
-        )
-        return response.choices[0]
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
 
-    def chat(self):
-        result = self.get_openai_response()
-        self.add_message(result.message.model_dump(exclude_unset=True))
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
 
-        # Handling just one function call, rather than a list of tool calls.
-        func_call = result.message.function_call
-        if func_call:
-            result_msg = self.tool_group.run_function_call(func_call, error_handler=True)
-            self.add_message(result_msg)
-
-        if result.finish_reason == 'function_call':
-            self.chat()
-```
-
-Using the same configuration as before, and sending the same messages.
-```py
-chatgpt = ChatGPTConversation(
-    model="gpt-4-1106-preview",
-    client=OpenAI(api_key=os.environ["OPENAI_API_KEY"]),
-    tool_group=group,
-    messages=[
-        dict(role="system", content="You are a helpful AI assistant."),
+async def main():
+    conversation: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
     ]
-)
+    conversation = await assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+
+# Simple style of tool definition:
+class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
+
+    city: str
+    """City to get the weather for."""
+
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
+
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    async def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+# More explicit style:
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
+            },
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
+        },
+        "required": ["ticker", "exchange"],
+    }
+
+    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+async def assistant_take_turn(
+    messages: list[ChatCompletionMessageParam],
+) -> list[ChatCompletionMessageParam]:
+    response = await openai_client.chat.completions.create(
+        messages=messages,
+        model="gpt-4.1-mini",
+        tools=[
+            get_weather.model_tool_definition(api="chat.completions"),
+            StockPriceTool.model_tool_definition(api="chat.completions"),
+        ],
+    )
+    message = response.choices[0].message
+
+    message_param = message.model_dump(exclude_none=True, exclude_unset=True)
+    messages.append(message_param)  # pyright: ignore[reportArgumentType]
+
+    if not message.tool_calls:
+        return messages
+
+    for call in message.tool_calls:
+
+        if call.function.name == get_weather.model_tool_name():
+            result = await get_weather.model_tool_run_tool_call(call, None)
+            tool_message = result.tool_message
+
+            if result.fail_reason == "explicit_handler_error":
+                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+
+        elif call.function.name == StockPriceTool.model_tool_name():
+            result = await StockPriceTool.model_tool_run_tool_call(call, None)
+            tool_message = result.tool_message
+
+            if result.fail_reason is None:
+                context: float = result.context
+
+        else:
+            tool_message: ChatCompletionMessageParam = {
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": f"Function `{call.function.name}` not found.",
+            }
+        messages.append(tool_message)
+
+    return await assistant_take_turn(messages)
+
+asyncio.run(main())
 ```
 
-```py
-chatgpt.send_message("Hello, how are you?")
+Output:
+
 ```
-```
-{
-    "role": "user",
-    "content": "Hello, how are you?"
-}
-{
-    "content": "Hello! I'm just a computer program, so I don't have feelings, but I'm functioning optimally and ready to assist you. How can I help you today?",
-    "role": "assistant"
-}
+--------------------------------------------------------------------------------
+
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
+
+--------------------------------------------------------------------------------
+
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_eC0HJwZsnk6N2SzaZBViJlah",
+      "function": {
+        "arguments": "{\"city\": \"San Francisco\", \"state\": \"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
+    },
+    {
+      "id": "call_MgtnVah214eFRSe5qJWnFqkz",
+      "function": {
+        "arguments": "{\"ticker\": \"AAPL\", \"exchange\": \"NASDAQ\"}",
+        "name": "get_stock_price"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_eC0HJwZsnk6N2SzaZBViJlah",
+  "content": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_MgtnVah214eFRSe5qJWnFqkz",
+  "content": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_woAZj5hAd7i21lolxoYhCYrL",
+      "function": {
+        "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_woAZj5hAd7i21lolxoYhCYrL",
+  "content": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "content": "The weather in San Francisco is currently not available, but nearby in Oakland, California, it is 30 degrees. Apple's stock price (AAPL) is currently trading at $100.",
+  "role": "assistant",
+  "annotations": []
 ```
 
-```py
-chatgpt.send_message(
-    "I'm enjoying my breakfast here in Denver. Can you list 3 fun "
-    "things to do here, then give me a quick morning update?"
+</details>
+
+
+<details><summary>OpenAI - Responses API</summary>
+
+```python
+import os
+import json
+from typing import Literal
+from openai import OpenAI
+from openai.types.responses.response_input_param import ResponseInputItemParam
+from toolcall.openai.core import (
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
 )
-```
-```
-{
-    "role": "user",
-    "content": "I'm enjoying my breakfast here in Denver. Can you list 3 fun things to do here, then give me a quick morning update?"
-}
-{
-    "role": "assistant",
-    "content": "Denver offers a wide variety of activities to enjoy. Here are three fun things you could consider doing:\n\n1. **Visit the Denver Art Museum**: The museum is one of the largest art museums between the West Coast and Chicago and offers a diverse collection of artworks from around the world.\n\n2. **Explore the Denver Botanic Gardens**: With a variety of themed gardens, a conservatory, and an amphitheater for summer concerts, the Denver Botanic Gardens provides a beautiful and relaxing urban oasis.\n\n3. **Walk or Bike the Cherry Creek Trail**: This scenic path runs through the heart of Denver and is great for biking, walking, or even just taking a leisurely stroll. It will give you great views of the city and nature alike.\n\nFor your morning update, let's check the current weather in Denver and see what the day looks like for you. I'll also provide you with the current date and time to start your day off informed. Please give me a moment to gather that information for you.",
-    "function_call": {
-        "name": "get_weather",
-        "arguments": "{\"city\":\"Denver\"}"
+
+openai_client = OpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
+
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
+
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
+
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
+
+def main():
+    conversation: list[ResponseInputItemParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
+    ]
+    conversation = assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+
+# Simple style of tool definition:
+class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
+
+    city: str
+    """City to get the weather for."""
+
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
+
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+# More explicit style:
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
+            },
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
+        },
+        "required": ["ticker", "exchange"],
     }
-}
-{
-    "role": "function",
-    "name": "get_weather",
-    "content": "Sunny and 75 degrees"
-}
-{
-    "role": "assistant",
-    "content": null,
-    "function_call": {
-        "arguments": "{\"city\":\"Denver\"}",
-        "name": "get_current_datetime"
-    }
-}
-{
-    "role": "function",
-    "name": "get_current_datetime",
-    "content": "Friday, Nov. 10, 2023, 10:00 AM"
-}
-{
-    "role": "assistant",
-    "content": "Here's your morning update for Denver:\n\n- **Weather**: It's a beautiful sunny day with temperatures around 75 degrees Fahrenheit. Perfect weather for any outdoor activities!\n- **Date and Time**: It's currently Friday, November 10, 2023, at 10:00 AM.\n\nWhether you decide to spend the day indoors or outdoors, it looks like it's shaping up to be a lovely day in Denver. Enjoy your breakfast and have a great day!"
-}
+
+    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+def assistant_take_turn(
+    messages: list[ResponseInputItemParam],
+) -> list[ResponseInputItemParam]:
+    response = openai_client.responses.create(
+        input=messages,
+        model="gpt-4.1-mini",
+        tools=[
+            get_weather.model_tool_definition(api="responses"),
+            StockPriceTool.model_tool_definition(api="responses"),
+        ],
+    )
+
+    for item in response.output:
+        item_param = item.model_dump(exclude_none=True, exclude_unset=True)
+        messages.append(item_param)  # pyright: ignore[reportArgumentType]
+
+    tool_calls = [item for item in response.output if item.type == "function_call"]
+
+    if not tool_calls:
+        return messages
+
+    for call in tool_calls:
+
+        if call.name == get_weather.model_tool_name():
+            result = get_weather.model_tool_run_tool_call(call, None)
+            output_item = result.output_item
+
+            if result.fail_reason == "explicit_handler_error":
+                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+
+        elif call.name == StockPriceTool.model_tool_name():
+            result = StockPriceTool.model_tool_run_tool_call(call, None)
+            output_item = result.output_item
+
+            if result.fail_reason is None:
+                context: float = result.context
+
+        else:
+            output_item: ResponseInputItemParam = {
+                "type": "function_call_output",
+                "call_id": call.call_id,
+                "output": f"Function `{call.name}` not found.",
+            }
+        messages.append(output_item)
+
+    return assistant_take_turn(messages)
+
+main()
 ```
+
+Output:
+
+```
+--------------------------------------------------------------------------------
+
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"San Francisco\",\"state\":\"California\"}",
+  "call_id": "call_QIkpagWx41j46dIpgpvhQXJP",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_680545a033dc8191b638b047a35a2566039bcbb9768be33e",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"ticker\":\"AAPL\",\"exchange\":\"NASDAQ\"}",
+  "call_id": "call_aHlGemYViha773MCDO0Bc8tf",
+  "name": "get_stock_price",
+  "type": "function_call",
+  "id": "fc_680545a0b0ec819195c0bbdb71fced0e039bcbb9768be33e",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_QIkpagWx41j46dIpgpvhQXJP",
+  "type": "function_call_output",
+  "output": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_aHlGemYViha773MCDO0Bc8tf",
+  "type": "function_call_output",
+  "output": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+  "call_id": "call_PhH9GVq8yOvAKZSZPOg45JdF",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_680545a1c9c8819189b6f1a61b817447039bcbb9768be33e",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_PhH9GVq8yOvAKZSZPOg45JdF",
+  "type": "function_call_output",
+  "output": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "id": "msg_680545a2aa5c819187191c3855009564039bcbb9768be33e",
+  "content": [
+    {
+      "annotations": [],
+      "text": "The weather in Oakland, near San Francisco, is currently 30 degrees. Apple's stock price is $100.",
+      "type": "output_text"
+    }
+  ],
+  "role": "assistant",
+  "status": "completed",
+  "type": "message"
+```
+
+</details>
+
+
+<details><summary>OpenAI - Responses API - Async</summary>
+
+```python
+import os
+import json
+import asyncio
+from typing import Literal
+from openai import AsyncOpenAI
+from openai.types.responses.response_input_param import ResponseInputItemParam
+from toolcall.openai.aio import (
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
+)
+
+openai_client = AsyncOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
+
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
+
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
+
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
+
+async def main():
+    conversation: list[ResponseInputItemParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
+    ]
+    conversation = await assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+
+# Simple style of tool definition:
+class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
+
+    city: str
+    """City to get the weather for."""
+
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
+
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    async def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+# More explicit style:
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
+            },
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
+        },
+        "required": ["ticker", "exchange"],
+    }
+
+    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+async def assistant_take_turn(
+    messages: list[ResponseInputItemParam],
+) -> list[ResponseInputItemParam]:
+    response = await openai_client.responses.create(
+        input=messages,
+        model="gpt-4.1-mini",
+        tools=[
+            get_weather.model_tool_definition(api="responses"),
+            StockPriceTool.model_tool_definition(api="responses"),
+        ],
+    )
+
+    for item in response.output:
+        item_param = item.model_dump(exclude_none=True, exclude_unset=True)
+        messages.append(item_param)  # pyright: ignore[reportArgumentType]
+
+    tool_calls = [item for item in response.output if item.type == "function_call"]
+
+    if not tool_calls:
+        return messages
+
+    for call in tool_calls:
+
+        if call.name == get_weather.model_tool_name():
+            result = await get_weather.model_tool_run_tool_call(call, None)
+            output_item = result.output_item
+
+            if result.fail_reason == "explicit_handler_error":
+                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+
+        elif call.name == StockPriceTool.model_tool_name():
+            result = await StockPriceTool.model_tool_run_tool_call(call, None)
+            output_item = result.output_item
+
+            if result.fail_reason is None:
+                context: float = result.context
+
+        else:
+            output_item: ResponseInputItemParam = {
+                "type": "function_call_output",
+                "call_id": call.call_id,
+                "output": f"Function `{call.name}` not found.",
+            }
+        messages.append(output_item)
+
+    return await assistant_take_turn(messages)
+
+asyncio.run(main())
+```
+
+Output:
+
+```
+--------------------------------------------------------------------------------
+
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"San Francisco\",\"state\":\"California\"}",
+  "call_id": "call_lhjIavtqF9veyDuag24JMbPA",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_680545902bbc819183d70c989f8f5957093466a11ea56351",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"ticker\":\"AAPL\",\"exchange\":\"NASDAQ\"}",
+  "call_id": "call_ZiDlQtnBh3lrI6wxQqNuxiG3",
+  "name": "get_stock_price",
+  "type": "function_call",
+  "id": "fc_6805459086288191b0f1310e8be122b5093466a11ea56351",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_lhjIavtqF9veyDuag24JMbPA",
+  "type": "function_call_output",
+  "output": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_ZiDlQtnBh3lrI6wxQqNuxiG3",
+  "type": "function_call_output",
+  "output": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+  "call_id": "call_ZNJoiNmAl6UmYh2hxNp8EAz8",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_6805459169508191bd67610013976855093466a11ea56351",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_ZNJoiNmAl6UmYh2hxNp8EAz8",
+  "type": "function_call_output",
+  "output": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "id": "msg_680545924b7c819181f0a9df9d6d3c69093466a11ea56351",
+  "content": [
+    {
+      "annotations": [],
+      "text": "The current temperature in Oakland, near San Francisco, is 30 degrees. Apple's stock price (AAPL) is currently trading at $100.",
+      "type": "output_text"
+    }
+  ],
+  "role": "assistant",
+  "status": "completed",
+  "type": "message"
+```
+
+</details>
+
+
+### 2. Dynamic tool call -> handler dispatch
+
+
+> [!TIP]
+> 
+> Recommended for most use cases with more than 1 tool.
+
+
+<details><summary>OpenAI - Chat Completions API</summary>
+
+```python
+import os
+import json
+from typing import Literal
+from openai import OpenAI
+from openai.types.chat.chat_completion_message_param import (
+    ChatCompletionMessageParam,
+)
+from toolcall.openai.core import (
+    LLMFunctionToolGroup,
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
+)
+
+openai_client = OpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
+
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
+
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
+
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
+
+def main():
+    conversation: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
+    ]
+    conversation = assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+
+# A simple mapping to store tool classes. Optionally, you can add generic type arguments
+# (e.g. `[None, None]` below) to statically enforce that all of your tools have the same
+# input/output context types. If they do, then the group's run_tool_call() and
+# run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
+# letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
+tool_group = LLMFunctionToolGroup[None, float]()
+
+# At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
+# Its bigger purpose is static type enforcement that the tool's input/output context
+# types satisfy those of the group. (e.g. [None, None])
+@tool_group.add_tool
+class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
+
+    city: str
+    """City to get the weather for."""
+
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
+
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+@tool_group.add_tool
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
+            },
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
+        },
+        "required": ["ticker", "exchange"],
+    }
+
+    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+def assistant_take_turn(
+    messages: list[ChatCompletionMessageParam],
+) -> list[ChatCompletionMessageParam]:
+    response = openai_client.chat.completions.create(
+        messages=messages,
+        model="gpt-4.1-mini",
+        tools=tool_group.tool_definitions(api="chat.completions"),
+    )
+    message = response.choices[0].message
+
+    message_param = message.model_dump(exclude_none=True, exclude_unset=True)
+    messages.append(message_param)  # pyright: ignore[reportArgumentType]
+
+    if not message.tool_calls:
+        return messages
+
+    results = tool_group.run_tool_calls(message.tool_calls, None)
+    messages.extend([res.tool_message for res in results])
+    return assistant_take_turn(messages)
+
+main()
+```
+
+Output:
+
+```
+--------------------------------------------------------------------------------
+
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
+
+--------------------------------------------------------------------------------
+
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_IJKdJIpRxawyly6fMa3cpo2G",
+      "function": {
+        "arguments": "{\"city\": \"San Francisco\", \"state\": \"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
+    },
+    {
+      "id": "call_UbdIYpDXdKJcNGFGicuhECtZ",
+      "function": {
+        "arguments": "{\"ticker\": \"AAPL\", \"exchange\": \"NASDAQ\"}",
+        "name": "get_stock_price"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_IJKdJIpRxawyly6fMa3cpo2G",
+  "content": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_UbdIYpDXdKJcNGFGicuhECtZ",
+  "content": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_bHnTUfwjsq7XyvMf0JuaLEAj",
+      "function": {
+        "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_bHnTUfwjsq7XyvMf0JuaLEAj",
+  "content": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "content": "The current temperature in the nearby city Oakland, California, is 30 degrees. Apple's stock price is currently trading at $100.",
+  "role": "assistant",
+  "annotations": []
+```
+
+</details>
+
+
+<details><summary>OpenAI - Chat Completions API - Async</summary>
+
+```python
+import os
+import json
+import asyncio
+from typing import Literal
+from openai import AsyncOpenAI
+from openai.types.chat.chat_completion_message_param import (
+    ChatCompletionMessageParam,
+)
+from toolcall.openai.aio import (
+    LLMFunctionToolGroup,
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
+)
+
+openai_client = AsyncOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
+
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
+
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
+
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
+
+async def main():
+    conversation: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
+    ]
+    conversation = await assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+
+# A simple mapping to store tool classes. Optionally, you can add generic type arguments
+# (e.g. `[None, None]` below) to statically enforce that all of your tools have the same
+# input/output context types. If they do, then the group's run_tool_call() and
+# run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
+# letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
+tool_group = LLMFunctionToolGroup[None, float]()
+
+# At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
+# Its bigger purpose is static type enforcement that the tool's input/output context
+# types satisfy those of the group. (e.g. [None, None])
+@tool_group.add_tool
+class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
+
+    city: str
+    """City to get the weather for."""
+
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
+
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    async def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+@tool_group.add_tool
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
+            },
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
+        },
+        "required": ["ticker", "exchange"],
+    }
+
+    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+async def assistant_take_turn(
+    messages: list[ChatCompletionMessageParam],
+) -> list[ChatCompletionMessageParam]:
+    response = await openai_client.chat.completions.create(
+        messages=messages,
+        model="gpt-4.1-mini",
+        tools=tool_group.tool_definitions(api="chat.completions"),
+    )
+    message = response.choices[0].message
+
+    message_param = message.model_dump(exclude_none=True, exclude_unset=True)
+    messages.append(message_param)  # pyright: ignore[reportArgumentType]
+
+    if not message.tool_calls:
+        return messages
+
+    results = await tool_group.run_tool_calls(message.tool_calls, None)
+    messages.extend([res.tool_message for res in results])
+    return await assistant_take_turn(messages)
+
+asyncio.run(main())
+```
+
+Output:
+
+```
+--------------------------------------------------------------------------------
+
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
+
+--------------------------------------------------------------------------------
+
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_QXICyK4Phb7TkK71FRSZE3Xf",
+      "function": {
+        "arguments": "{\"city\": \"San Francisco\", \"state\": \"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
+    },
+    {
+      "id": "call_mOQEExLeQhUHQ5lVhKodSSd1",
+      "function": {
+        "arguments": "{\"ticker\": \"AAPL\", \"exchange\": \"NASDAQ\"}",
+        "name": "get_stock_price"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_QXICyK4Phb7TkK71FRSZE3Xf",
+  "content": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_mOQEExLeQhUHQ5lVhKodSSd1",
+  "content": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "role": "assistant",
+  "annotations": [],
+  "tool_calls": [
+    {
+      "id": "call_BMqEYoRVkiXvfw7qq57qrCU4",
+      "function": {
+        "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+        "name": "get_weather"
+      },
+      "type": "function"
+    }
+  ]
+
+--------------------------------------------------------------------------------
+
+  "role": "tool",
+  "tool_call_id": "call_BMqEYoRVkiXvfw7qq57qrCU4",
+  "content": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "content": "The weather in San Francisco is currently not available, but in nearby Oakland, it is 30 degrees. Apple's stock price (AAPL) is currently trading at $100.",
+  "role": "assistant",
+  "annotations": []
+```
+
+</details>
+
+
+<details><summary>OpenAI - Responses API</summary>
+
+```python
+import os
+import json
+from typing import Literal
+from openai import OpenAI
+from openai.types.responses.response_input_param import ResponseInputItemParam
+from toolcall.openai.core import (
+    LLMFunctionToolGroup,
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
+)
+
+openai_client = OpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
+
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
+
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
+
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
+
+def main():
+    conversation: list[ResponseInputItemParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
+    ]
+    conversation = assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+
+# A simple mapping to store tool classes. Optionally, you can add generic type arguments
+# (e.g. `[None, None]` below) to statically enforce that all of your tools have the same
+# input/output context types. If they do, then the group's run_tool_call() and
+# run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
+# letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
+tool_group = LLMFunctionToolGroup[None, float]()
+
+# At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
+# Its bigger purpose is static type enforcement that the tool's input/output context
+# types satisfy those of the group. (e.g. [None, None])
+@tool_group.add_tool
+class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
+
+    city: str
+    """City to get the weather for."""
+
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
+
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+@tool_group.add_tool
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
+            },
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
+        },
+        "required": ["ticker", "exchange"],
+    }
+
+    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+def assistant_take_turn(
+    messages: list[ResponseInputItemParam],
+) -> list[ResponseInputItemParam]:
+    response = openai_client.responses.create(
+        input=messages,
+        model="gpt-4.1-mini",
+        tools=tool_group.tool_definitions(api="responses"),
+    )
+    for item in response.output:
+        item_param = item.model_dump(exclude_none=True, exclude_unset=True)
+        messages.append(item_param)  # pyright: ignore[reportArgumentType]
+
+    tool_calls = [item for item in response.output if item.type == "function_call"]
+
+    if not tool_calls:
+        return messages
+
+    results = tool_group.run_tool_calls(tool_calls, None)
+    messages.extend([res.output_item for res in results])
+    return assistant_take_turn(messages)
+
+main()
+```
+
+Output:
+
+```
+--------------------------------------------------------------------------------
+
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"San Francisco\",\"state\":\"California\"}",
+  "call_id": "call_HWZBoPd3EnDxWT6URU0mEu3G",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_680545a4ed488191a9b02835efb7ca530b834c29660da1ca",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"ticker\":\"AAPL\",\"exchange\":\"NASDAQ\"}",
+  "call_id": "call_2QEgvlQ9yf54iwFUOlArmWAS",
+  "name": "get_stock_price",
+  "type": "function_call",
+  "id": "fc_680545a53d488191be9e89611718fc3c0b834c29660da1ca",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_HWZBoPd3EnDxWT6URU0mEu3G",
+  "type": "function_call_output",
+  "output": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_2QEgvlQ9yf54iwFUOlArmWAS",
+  "type": "function_call_output",
+  "output": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+  "call_id": "call_lLCb3z1SnlqRjJAVotLiIyRZ",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_680545a7baf88191a7d61dea515b6b820b834c29660da1ca",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_lLCb3z1SnlqRjJAVotLiIyRZ",
+  "type": "function_call_output",
+  "output": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "id": "msg_680545a934f48191bdc71a3388df59610b834c29660da1ca",
+  "content": [
+    {
+      "annotations": [],
+      "text": "It's currently 30 degrees in Oakland, California. Apple's stock price is currently trading at $100.",
+      "type": "output_text"
+    }
+  ],
+  "role": "assistant",
+  "status": "completed",
+  "type": "message"
+```
+
+</details>
+
+
+<details><summary>OpenAI - Responses API - Async</summary>
+
+```python
+import os
+import json
+import asyncio
+from typing import Literal
+from openai import AsyncOpenAI
+from openai.types.responses.response_input_param import ResponseInputItemParam
+from toolcall.openai.aio import (
+    LLMFunctionToolGroup,
+    LLMFunctionTool,
+    ToolHandlerResult,
+    ToolErrorMessageForLLMToSee,
+)
+
+openai_client = AsyncOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+)
+
+SYSTEM_PROMPT = """
+You are a helpful assistant. You have several function tools available. Use as needed.
+
+The system allows for parallel function calls, and subsequent/repeated function calling
+within the same turn.
+""".strip()
+
+USER_PROMPT = """
+What's the weather in san francisco, and apple's stock price?
+""".strip()
+
+async def main():
+    conversation: list[ResponseInputItemParam] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": USER_PROMPT},
+    ]
+    conversation = await assistant_take_turn(conversation)
+    for msg in conversation:
+        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+
+# A simple mapping to store tool classes. Optionally, you can add generic type arguments
+# (e.g. `[None, None]` below) to statically enforce that all of your tools have the same
+# input/output context types. If they do, then the group's run_tool_call() and
+# run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
+# letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
+tool_group = LLMFunctionToolGroup[None, float]()
+
+# At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
+# Its bigger purpose is static type enforcement that the tool's input/output context
+# types satisfy those of the group. (e.g. [None, None])
+@tool_group.add_tool
+class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+    """Get the weather somewhere."""
+
+    city: str
+    """City to get the weather for."""
+
+    state: Literal["California", "New York", "Texas"]
+    """State where the city is. Only a few are available."""
+
+    # Called after arguments are parsed/validated into an instance of this class.
+    # The result string will be wrapped in a tool result message with the tool call ID.
+    async def model_tool_handler(self, context: None) -> tuple[str, float]:
+        if self.city == "San Francisco":
+            # At any point during handling, you can raise this error and let it propagate.
+            # It will be caught and used as the result tool message's content. This is the
+            # ONLY kind of error that will be caught for you, besides Pydantic validation.
+            raise ToolErrorMessageForLLMToSee(
+                "Weather unavailable for San Francisco. Please get the weather for a "
+                "nearby city, before responding to the user. Don't ask first. Just call "
+                "this function again."
+            )
+
+        result = f"It's currently 30 degrees in {self.city}, {self.state}."
+        # Result for the LLM, plus any context you want to pass back to yourself.
+        return result, 1.234
+
+@tool_group.add_tool
+class StockPriceTool(LLMFunctionTool[None, float]):
+    ticker: str
+    exchange: Literal["NASDAQ", "NYSE"]
+
+    # By default, the class name is used. You can override it:
+    model_tool_custom_name = "get_stock_price"
+
+    # By default, the class docstring is used. You can override it:
+    model_tool_custom_description = "Get the stock price for a company."
+
+    # By default, Pydantic generates the JSON Schema. You can override it:
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Ticker symbol of the company.",
+            },
+            "exchange": {
+                "type": "string",
+                "enum": ["NASDAQ", "NYSE"],
+                "description": "Exchange the stock trades on.",
+            },
+        },
+        "required": ["ticker", "exchange"],
+    }
+
+    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        result = f"{self.ticker} is currently trading at $100."
+        return ToolHandlerResult(result_content=result, context=1.234)
+
+async def assistant_take_turn(
+    messages: list[ResponseInputItemParam],
+) -> list[ResponseInputItemParam]:
+    response = await openai_client.responses.create(
+        input=messages,
+        model="gpt-4.1-mini",
+        tools=tool_group.tool_definitions(api="responses"),
+    )
+    for item in response.output:
+        item_param = item.model_dump(exclude_none=True, exclude_unset=True)
+        messages.append(item_param)  # pyright: ignore[reportArgumentType]
+
+    tool_calls = [item for item in response.output if item.type == "function_call"]
+
+    if not tool_calls:
+        return messages
+
+    results = await tool_group.run_tool_calls(tool_calls, None)
+    messages.extend([res.output_item for res in results])
+    return await assistant_take_turn(messages)
+
+asyncio.run(main())
+```
+
+Output:
+
+```
+--------------------------------------------------------------------------------
+
+  "role": "user",
+  "content": "What's the weather in san francisco, and apple's stock price?"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"San Francisco\",\"state\":\"California\"}",
+  "call_id": "call_RXr95AgQKn690FiaPSFShrle",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_6805459414908191a0196f3082e8d28105f2ab1e2c67abe7",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"ticker\":\"AAPL\",\"exchange\":\"NASDAQ\"}",
+  "call_id": "call_02j4BJnO9HJ4mbT3boNnwv3U",
+  "name": "get_stock_price",
+  "type": "function_call",
+  "id": "fc_680545944c248191999ec99d0017e7c505f2ab1e2c67abe7",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_RXr95AgQKn690FiaPSFShrle",
+  "type": "function_call_output",
+  "output": "Weather unavailable for San Francisco. Please get the weather for a nearby city, before responding to the user. Don't ask first. Just call this function again."
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_02j4BJnO9HJ4mbT3boNnwv3U",
+  "type": "function_call_output",
+  "output": "AAPL is currently trading at $100."
+
+--------------------------------------------------------------------------------
+
+  "arguments": "{\"city\":\"Oakland\",\"state\":\"California\"}",
+  "call_id": "call_w0kMsByow1sAQVUM1ubSgsos",
+  "name": "get_weather",
+  "type": "function_call",
+  "id": "fc_68054596bb3c81919ff8804d9195d82005f2ab1e2c67abe7",
+  "status": "completed"
+
+--------------------------------------------------------------------------------
+
+  "call_id": "call_w0kMsByow1sAQVUM1ubSgsos",
+  "type": "function_call_output",
+  "output": "It's currently 30 degrees in Oakland, California."
+
+--------------------------------------------------------------------------------
+
+  "id": "msg_680545988a088191a2fa6badd9a0f62605f2ab1e2c67abe7",
+  "content": [
+    {
+      "annotations": [],
+      "text": "It's currently 30 degrees in Oakland, California, which is near San Francisco. Apple's stock price is currently trading at $100.",
+      "type": "output_text"
+    }
+  ],
+  "role": "assistant",
+  "status": "completed",
+  "type": "message"
+```
+
+</details>

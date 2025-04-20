@@ -1,0 +1,50 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.12]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install package and dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black pyright pytest pytest-cov pytest-asyncio
+        pip install openai
+        pip install .
+
+    - name: Run Black formatting check
+      run: black --check .
+
+    - name: Run Pyright static type checker
+      run: pyright .
+
+    - name: Run tests with pytest + coverage
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: pytest --cov=toolcall --cov-branch --cov-report=xml tests/ -vvs
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: ryayoung/toolcall

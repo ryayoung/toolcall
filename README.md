@@ -29,7 +29,7 @@ handling calls to them, and dynamically dispatching calls across a group of tool
     - ✅ You **should** be using `toolcall`. It will make your life easier.
 
 
-## Learn-by-example Documentation
+# Learn-by-example Documentation
 
 Below is one end-to-end tool-calling workflow built with `toolcall`, in several variations.
 
@@ -1748,3 +1748,197 @@ Output:
 ```
 
 </details>
+
+---
+
+
+# API Reference
+
+## `toolcall.openai`
+  
+- `core/`: Standard (synchronous) API
+
+    ```python
+    from toolcall.openai.core import LLMFunctionTool
+
+    class GetWeather(LLMFunctionTool):
+        def model_tool_handler(self, context: None): ...
+    ```
+
+- `aio/`: Asyncio API with `async/await` syntax for tool handlers.
+
+    ```python
+    from toolcall.openai.aio import LLMFunctionTool
+
+    class GetWeather(LLMFunctionTool):
+        async def model_tool_handler(self, context: None): ...
+    ```
+
+### `class LLMFunctionTool[ContextIn, ContextOut](BaseModel)`
+
+A [Pydantic BaseModel](https://docs.pydantic.dev/latest/) that represents a tool for an LLM to
+call. Its fields represent arguments from the LLM. Its `model_tool_handler()` instance method
+(if you implement it) is your logic for creating response text to send back to the LLM.
+
+#### API
+
+- **Generic type arguments**: `[ContextIn, ContextOut]`
+    
+    If set, these apply a type constraint on the *additional* data your orchestration code
+    must pass in to the tool handler, and that your handler must return back, respectively.
+
+    Their purpose is to enable type safety when defining a **group** of tools
+    (`LLMToolGroup[ContextIn, ContextOut]`) and using the group to dynamically dispatch
+    tool calls to its function tools. In this use case, every tool in the group should
+    take the same type of input context and return the same type of output context.
+
+- **Members you _need_ to know about**
+
+    **Create a tool definition to send to the LLM:**
+
+    - `model_tool_definition(cls, api="chat.completions") -> ChatCompletionToolParam`
+    - `model_tool_definition(cls, api="responses") -> FunctionToolParam`
+    - `model_tool_definition(cls, ...) -> ...`
+        - Get the tool definition for use in the `tools` list in an API request.
+          Returns exactly the type expected by the API client library.
+    - `model_tool_pretty_definition(cls, ...) -> str`
+        - For development/debugging, get a nicely formatted string representation
+          of the tool definition.
+
+    **Handle a tool call that the LLM sent you, and produce a response.**
+
+    - `async` `model_tool_handler(self, ...) -> ...`
+        - You should implement this by defining how to go from validated tool call
+          arguments (`self`) to result content text.
+        - Takes a single input, `context: ContextIn` of an arbitrary type of your
+          choice. This allows your orchestration to inject additional data into the
+          handler, if needed.
+        - Returns **two** things:
+            1. Result Content: The content (usually `str`) that should be put into
+               a response message to the LLM.
+            2. Output Context: `ContextOut`: Arbitrary data to send back to your
+               orchestration logic that initiated the tool call handling.
+    - `async` `model_tool_run_tool_call(cls, ...) -> ...`
+        - Takes a tool call (either from the chat completions API, or responses API),
+          uses your class to parse/validate the arguments with Pydantic, executes your
+          handler, and wraps the result. The return value has everything needed to
+          respond to the tool call in any API type.
+
+- **Config: Class-variables**
+
+    Optional class configurations are set using class variables. (**Do not** declare type
+    annotations when setting these.)
+
+    - `model_tool_strict` : bool, default False
+    - `model_tool_custom_name` : str or None, default None
+    - `model_tool_name_generator` : ((str) => str) or None, default None
+        - Function to generate a tool function name based on the class name.
+    - `model_tool_custom_description` : str or None, default None
+    - `model_tool_custom_json_schema` : dict or None, default None
+
+- **Config: Methods**
+
+    Aside from `model_tool_handler()` (which you must implement if tool-calling), other
+    methods are available for you to easily override, if you need to change behavior.
+
+    - `model_tool_format_invalid_arguments_error(cls, ...) -> str`
+        - Takes a `pydantic.ValidationError`
+    - `model_tool_format_explicit_error(cls, ...) -> str`
+        - Takes a `ToolErrorMessageForLLMToSee`
+    - `model_tool_validate_tool_call(cls, ...) -> Self`
+        - Construct an instance of this class, given `name: str, arguments: str` for a
+          tool call.
+    - `model_tool_generate_json_schema(cls) -> dict`
+
+- **Usage: Methods**
+
+    Several other methods are provided for you to use (not override).
+
+    - `model_tool_name(cls) -> str`
+    - `model_tool_json_schema(cls) -> dict`
+
+
+#### Examples
+
+```python
+from toolcall.openai.aio import LLMFunctionTool
+
+class GetWeather(LLMFunctionTool[None, None]):  # LLM-facing name, "GetWeather"
+    """Get the weather in any city"""  # Default LLM-facing function description
+
+    city: str
+    """Name of the city"""  # Default LLM-facing field description
+
+    async def model_tool_handler(self, context: None) -> tuple[str, None]:
+        result_content = f"Sunny in {self.city}"  # Result text to send back to LLM
+        context_out = None  # Optional context passed back to orchestration
+        return result_content, context_out
+```
+
+Use `.model_tool_definition()` to get the tool definition, or, for development/debugging, use
+`.model_tool_pretty_definition()`.
+
+```python
+print(GetWeather.model_tool_pretty_definition(api="chat.completions"))
+```
+
+```
+GetWeather:
+    "type": "function",
+    "function": {
+        "name": "GetWeather",
+        "description": "Get the weather in any city",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "description": "Name of the city",
+                    "title": "City",
+                    "type": "string",
+                }
+            },
+            "required": ["city"],
+        },
+    },
+```
+
+Let's define the same tool again, but customize/hardcode the definition.
+
+```python
+from toolcall.openai.aio import LLMFunctionTool
+
+class GetWeather(LLMFunctionTool[None, None]):
+    city: str
+
+    model_tool_custom_name = "get_weather"
+    model_tool_custom_description = "Get the weather in any city."
+    model_tool_custom_json_schema = {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string", "description": "Name of the city"}
+        },
+        "required": ["city"],
+    }
+
+    async def model_tool_handler(self, context: None) -> tuple[str, None]:
+        ...
+```
+
+This will behave the same as the earlier version.
+
+To get the actual name and schema that will go into the tool definition, you can
+use `.model_tool_name()` and `.model_tool_json_schema()`.
+
+---
+
+### `class LLMFunctionToolGroup[ContextIn, ContextOut](...)`
+
+- Parent: `dict[str, type[LLMFunctionTool[ContextIn, ContextOut]]]`
+
+A simple container for a group of tools, that statically enforces type safety
+across the tools, ensuring their input/output context types are compatible with
+each other. Has utility methods for dynamic tool call dispatch.
+
+Documentation coming soon. See the **Learn-by-example Documentation** near the top of
+this page, in the dynamic tool call dispatch section. There are examples of how a
+tool group is used.

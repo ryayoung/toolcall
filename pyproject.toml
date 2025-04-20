@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "toolcall"
-version = "1.0.0"
+version = "2.0.0"
 python_requires = ">=3.12"
 description = "The agentic framework for building without an agentic framework."
 authors = [

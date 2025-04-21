@@ -30,7 +30,9 @@ class ToolErrorMessageForLLMToSee(Exception):
 
 
 class ToolHandlerResult[ContextOut](NamedTuple):
-    "Result of a tool's user-defined `model_tool_handler()`"
+    """
+    Result of a tool's user-defined `model_tool_handler()`
+    """
 
     result_content: str
     context: ContextOut
@@ -52,7 +54,9 @@ class BaseToolCallResult:
 
     @cached_property
     def tool_message(self) -> ChatCompletionToolMessageParam:
-        "(for the Chat Completions API) A role='tool' message param."
+        """
+        For the Chat Completions API: A role='tool' message param.
+        """
         return {
             "role": "tool",
             "tool_call_id": self.call_id,
@@ -61,7 +65,9 @@ class BaseToolCallResult:
 
     @cached_property
     def output_item(self) -> FunctionCallOutput:
-        "(for the Responses API) Function call output item param."
+        """
+        For the Responses API: Function call output item param.
+        """
         assert isinstance(self.result_content, str), "Responses API requires str"
         return {
             "call_id": self.call_id,
@@ -72,7 +78,9 @@ class BaseToolCallResult:
 
 @dataclass(frozen=True, kw_only=True)
 class ToolCallSuccess[ContextOut](BaseToolCallResult):
-    "Result of handling a tool call successfully. Includes the output context."
+    """
+    Result of handling a tool call successfully. Includes the output context.
+    """
 
     fail_reason: None = None
     context: ContextOut
@@ -80,7 +88,9 @@ class ToolCallSuccess[ContextOut](BaseToolCallResult):
 
 @dataclass(frozen=True, kw_only=True)
 class ToolCallFailure(BaseToolCallResult):
-    "Result of handling a tool call unsuccessfully. Includes the output context."
+    """
+    Result of handling a tool call unsuccessfully. Includes the output context.
+    """
 
     fail_reason: ToolCallFailReason
     context: None = None
@@ -93,6 +103,10 @@ type ToolCallResult[T] = Annotated[
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class StandardToolCall:
+    """
+    A common structure to store the data from a tool call from various API types.
+    """
+
     id: str
     name: str
     arguments: str
@@ -101,7 +115,9 @@ class StandardToolCall:
 def standardize_tool_call(
     call: ChatCompletionMessageToolCall | ResponseFunctionToolCall | StandardToolCall,
 ) -> StandardToolCall:
-    "Standardize tool call from different API types."
+    """
+    Standardize tool call from different API types, to a common structure.
+    """
     if isinstance(call, StandardToolCall):
         return call
     if isinstance(call, ChatCompletionMessageToolCall):
@@ -122,7 +138,9 @@ def standardize_tool_call(
 def tool_def_for_chat_completions_api(
     name: str, description: str | None, strict: bool, schema: dict
 ) -> ChatCompletionToolParam:
-    "Create a tool definition for the `tools` array in the Chat Completions API"
+    """
+    Create a tool definition for the `tools` array in the Chat Completions API
+    """
     function: FunctionDefinition = {"name": name}
     if strict:
         function["strict"] = True
@@ -142,7 +160,9 @@ def tool_def_for_chat_completions_api(
 def tool_def_for_responses_api(
     name: str, description: str | None, strict: bool, schema: dict
 ) -> FunctionToolParam:
-    "Create a tool definition for the `tools` array in the Responses API"
+    """
+    Create a tool definition for the `tools` array in the Responses API
+    """
     param: FunctionToolParam = {
         "type": "function",
         "name": name,

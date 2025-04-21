@@ -27,7 +27,9 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
     """
 
     def add_tool(self, tool: type[LLMFunctionTool[ContextIn, ContextOut]]):
-        "Can either be used alone, or as a decorator over a tool class."
+        """
+        Can either be used alone, or as a decorator over a tool class.
+        """
         self[tool.model_tool_name()] = tool
         # This is dark magic, but it works.
         return cast(..., tool)  # pyright: ignore[reportInvalidTypeForm]
@@ -53,6 +55,9 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
     def tool_definitions(
         self, api: Literal["chat.completions", "responses"]
     ) -> list[ChatCompletionToolParam] | list[FunctionToolParam]:
+        """
+        Tool definitions for the `tools` array in the API request.
+        """
         if api == "responses":
             return [tool.model_tool_definition(api) for tool in self.tool_classes]
         return [tool.model_tool_definition(api) for tool in self.tool_classes]
@@ -64,6 +69,9 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         ),
         context: ContextIn,
     ) -> ToolCallResult[ContextOut]:
+        """
+        Dispatch a tool call to the tool with a matching name.
+        """
         call = standardize_tool_call(call)
         if tool := self.get(call.name):
             return tool.model_tool_run_tool_call(call, context)
@@ -82,13 +90,19 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         ),
         context: ContextIn,
     ) -> list[ToolCallResult[ContextOut]]:
-        "Handle multiple tool calls in parallel."
+        """
+        Dispatch multiple tool calls to the tool with a matching name.
+        If using async, the calls will be run in parallel.
+        """
         return [self.run_tool_call(call, context) for call in calls]
 
     @classmethod
     def from_list(
         cls, tools: Sequence[type[LLMFunctionTool[ContextIn, ContextOut]]]
     ) -> Self:
+        """
+        Create from a list of tool classes.
+        """
         return cls({tool.model_tool_name(): tool for tool in tools})
 
     def __contains__(  # pyright: ignore[reportIncompatibleMethodOverride]
@@ -99,7 +113,9 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         return super().__contains__(item)
 
     def pretty_definition(self, api: Literal["chat.completions", "responses"]) -> str:
-        "For development, get a pretty representation of the tool definitions."
+        """
+        For development, get a pretty representation of the tool definitions.
+        """
         from textwrap import indent
 
         definitions = [c.model_tool_pretty_definition(api) for c in self.tool_classes]

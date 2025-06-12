@@ -38,6 +38,8 @@ jobs:
       run: uv run task typecheck
 
     - name: Run tests with coverage
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: uv run task tests --cov-report=xml
 
     - name: Upload coverage reports to Codecov

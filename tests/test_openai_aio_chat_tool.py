@@ -119,7 +119,6 @@ def test_example():
             return messages
 
         for call in message.tool_calls:
-
             if call.function.name == get_weather.model_tool_name():
                 result = await get_weather.model_tool_run_tool_call(call, None)
                 tool_message = result.tool_message

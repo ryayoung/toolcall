@@ -13,7 +13,6 @@ from openai.types.chat.chat_completion_message_tool_call import (
 
 def test_add_more_coverage():
     async def main():
-
         class MyEmptyTool(LLMFunctionTool):
             model_tool_strict = True
             model_tool_custom_json_schema = {"foo": "bar"}

@@ -141,19 +141,12 @@ def tool_def_for_chat_completions_api(
     """
     Create a tool definition for the `tools` array in the Chat Completions API
     """
-    function: FunctionDefinition = {"name": name}
-    if strict:
-        function["strict"] = True
-
-    if description:
-        function["description"] = description
-    if properties := schema.get("properties"):
-        function["parameters"] = {
-            "type": "object",
-            "properties": properties,
-            "required": schema.get("required", []),
-        }
-
+    function: FunctionDefinition = {
+        "name": name,
+        "description": description or "",
+        "parameters": schema,
+        "strict": strict,
+    }
     return {"type": "function", "function": function}
 
 
@@ -163,17 +156,10 @@ def tool_def_for_responses_api(
     """
     Create a tool definition for the `tools` array in the Responses API
     """
-    param: FunctionToolParam = {
+    return {
         "type": "function",
         "name": name,
-        "parameters": {
-            "type": "object",
-            "properties": schema.get("properties", {}),
-            "required": schema.get("required", []),
-        },
+        "description": description or "",
+        "parameters": schema,
         "strict": strict,
     }
-    if description:
-        param["description"] = description
-
-    return param

@@ -28,6 +28,7 @@ dependencies = [
 ]
 [dependency-groups]
 dev = [
+    "black>=25.1.0",
     "openai>=1.86.0",
     "pyright>=1.1.402",
     "pytest>=8.4.0",

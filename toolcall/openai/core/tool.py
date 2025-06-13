@@ -39,11 +39,7 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
     This is equally useful for tool-calling as well as structured output.
     """
 
-    model_config = pydantic.ConfigDict(
-        populate_by_name=True,
-        coerce_numbers_to_str=True,
-        use_attribute_docstrings=True,
-    )
+    model_config = pydantic.ConfigDict(use_attribute_docstrings=True)
 
     # Things for subclasses to customize/override
     # ----------------------------------------------------------------------------------

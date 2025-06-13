@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "toolcall"
-version = "2.0.2"
+version = "2.0.3"
 requires-python = ">=3.12"
 description = "The agentic framework for building without an agentic framework."
 authors = [
@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries"
 ]
 dependencies = [
-    'pydantic',
+    "pydantic>=2.11",
 ]
 [dependency-groups]
 dev = [
@@ -55,4 +55,3 @@ tests = "pytest --cov=toolcall --cov-branch -vvs"
 [tool.pyright]
 reportUnusedImport = "error"
 reportMissingParameterType = "error"
-

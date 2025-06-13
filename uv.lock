@@ -531,7 +531,7 @@ wheels = [
 
 [[package]]
 name = "toolcall"
-version = "2.0.1"
+version = "2.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -550,7 +550,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic" }]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11" }]
 
 [package.metadata.requires-dev]
 dev = [

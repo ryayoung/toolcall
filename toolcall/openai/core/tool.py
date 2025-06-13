@@ -146,11 +146,15 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         """
         name, strict = cls.model_tool_name(), cls.model_tool_strict
         schema = cls.model_tool_json_schema()
-        description = cls.model_tool_custom_description or schema.get("description", "")
-        description = dedent(description.strip())
-        if api == "chat.completions":
-            return tool_def_for_chat_completions_api(name, description, strict, schema)
-        return tool_def_for_responses_api(name, description, strict, schema)
+
+        schema.pop("title", None)  # Because we have function name.
+        description = schema.pop("description", "")  # Because we pass it separately.
+        description = cls.model_tool_custom_description or description
+        description = dedent(description).strip()
+
+        if api == "responses":
+            return tool_def_for_responses_api(name, description, strict, schema)
+        return tool_def_for_chat_completions_api(name, description, strict, schema)
 
     @classmethod
     def model_tool_run_tool_call(

@@ -71,11 +71,13 @@ class BaseToolCallResult:
         """
         For the Responses API: Function call output item param.
         """
-        assert isinstance(self.result_content, str), "Responses API requires str"
+        output = self.result_content
+        if not isinstance(output, str):
+            output = "\n\n".join([part["text"] for part in output])
         return {
             "call_id": self.call_id,
             "type": "function_call_output",
-            "output": self.result_content,
+            "output": output,
         }
 
 

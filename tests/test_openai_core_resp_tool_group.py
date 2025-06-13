@@ -11,7 +11,7 @@ def test_example():
         LLMFunctionToolGroup,
         LLMFunctionTool,
         ToolHandlerResult,
-        ToolErrorMessageForLLMToSee,
+        ErrorForLLMToSee,
     )
 
     openai_client = OpenAI(
@@ -65,7 +65,7 @@ def test_example():
                 # At any point during handling, you can raise this error and let it propagate.
                 # It will be caught and used as the result tool message's content. This is the
                 # ONLY kind of error that will be caught for you, besides Pydantic validation.
-                raise ToolErrorMessageForLLMToSee(
+                raise ErrorForLLMToSee(
                     "Weather unavailable for San Francisco. Please get the weather for a "
                     "nearby city, before responding to the user. Don't ask first. Just call "
                     "this function again."

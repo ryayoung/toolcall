@@ -20,13 +20,16 @@ from openai.types.responses.response_function_tool_call import (
 )
 
 
-class ToolErrorMessageForLLMToSee(Exception):
+class ErrorForLLMToSee(Exception):
     """
     Raise one of these in your handler, and it will automatically be stringified
     and placed in the tool response message.
     """
 
     pass
+
+# Deprecated alias
+ToolErrorMessageForLLMToSee = ErrorForLLMToSee
 
 
 class ToolHandlerResult[ContextOut](NamedTuple):

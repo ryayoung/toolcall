@@ -1,4 +1,5 @@
 from ..common import (
+    ErrorForLLMToSee,
     ToolErrorMessageForLLMToSee,
     ToolHandlerResult,
     ToolCallFailReason,
@@ -20,6 +21,7 @@ from .tool_group import (
 
 
 __all__ = [
+    "ErrorForLLMToSee",
     "ToolErrorMessageForLLMToSee",
     "ToolHandlerResult",
     "ToolCallFailReason",

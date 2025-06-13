@@ -67,7 +67,7 @@ from toolcall.openai.core import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = OpenAI(
@@ -121,7 +121,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -275,7 +275,7 @@ from toolcall.openai.aio import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = AsyncOpenAI(
@@ -329,7 +329,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -480,7 +480,7 @@ from toolcall.openai.core import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = OpenAI(
@@ -534,7 +534,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -684,7 +684,7 @@ from toolcall.openai.aio import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = AsyncOpenAI(
@@ -738,7 +738,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -895,7 +895,7 @@ from openai.types.chat.chat_completion_message_param import (
 from toolcall.openai.core import (
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = OpenAI(
@@ -939,7 +939,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -1007,7 +1007,7 @@ def assistant_take_turn(
             tool_message = result.tool_message
 
             if result.fail_reason == "explicit_handler_error":
-                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+                print("get_weather raised a ErrorForLLMToSee()")
 
         elif call.function.name == StockPriceTool.model_tool_name():
             result = StockPriceTool.model_tool_run_tool_call(call, None)
@@ -1117,7 +1117,7 @@ from openai.types.chat.chat_completion_message_param import (
 from toolcall.openai.aio import (
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = AsyncOpenAI(
@@ -1161,7 +1161,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -1229,7 +1229,7 @@ async def assistant_take_turn(
             tool_message = result.tool_message
 
             if result.fail_reason == "explicit_handler_error":
-                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+                print("get_weather raised a ErrorForLLMToSee()")
 
         elif call.function.name == StockPriceTool.model_tool_name():
             result = await StockPriceTool.model_tool_run_tool_call(call, None)
@@ -1336,7 +1336,7 @@ from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.core import (
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = OpenAI(
@@ -1380,7 +1380,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -1450,7 +1450,7 @@ def assistant_take_turn(
             output_item = result.output_item
 
             if result.fail_reason == "explicit_handler_error":
-                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+                print("get_weather raised a ErrorForLLMToSee()")
 
         elif call.name == StockPriceTool.model_tool_name():
             result = StockPriceTool.model_tool_run_tool_call(call, None)
@@ -1555,7 +1555,7 @@ from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.aio import (
     LLMFunctionTool,
     ToolHandlerResult,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
 )
 
 openai_client = AsyncOpenAI(
@@ -1599,7 +1599,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
             # At any point during handling, you can raise this error and let it propagate.
             # It will be caught and used as the result tool message's content. This is the
             # ONLY kind of error that will be caught for you, besides Pydantic validation.
-            raise ToolErrorMessageForLLMToSee(
+            raise ErrorForLLMToSee(
                 "Weather unavailable for San Francisco. Please get the weather for a "
                 "nearby city, before responding to the user. Don't ask first. Just call "
                 "this function again."
@@ -1669,7 +1669,7 @@ async def assistant_take_turn(
             output_item = result.output_item
 
             if result.fail_reason == "explicit_handler_error":
-                print("get_weather raised a ToolErrorMessageForLLMToSee()")
+                print("get_weather raised a ErrorForLLMToSee()")
 
         elif call.name == StockPriceTool.model_tool_name():
             result = await StockPriceTool.model_tool_run_tool_call(call, None)

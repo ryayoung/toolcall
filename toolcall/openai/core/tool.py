@@ -21,7 +21,7 @@ from openai.types.responses.response_function_tool_call import (
 
 from ..common import (
     StandardToolCall,
-    ToolErrorMessageForLLMToSee,
+    ErrorForLLMToSee,
     ToolHandlerResult,
     ToolCallSuccess,
     ToolCallFailure,
@@ -180,7 +180,7 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
 
         try:
             result = self.model_tool_handler(context)
-        except ToolErrorMessageForLLMToSee as e:
+        except ErrorForLLMToSee as e:
             return ToolCallFailure(
                 call_id=call.id,
                 result_content=cls.model_tool_format_explicit_error(e),

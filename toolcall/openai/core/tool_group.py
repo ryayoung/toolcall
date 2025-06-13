@@ -52,14 +52,21 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         self, api: Literal["chat.completions"]
     ) -> list[ChatCompletionToolParam]: ...
 
+    @overload
+    def tool_definitions(  # pragma: no cover
+        self, api: Literal["chat.completions", "responses"]
+    ) -> list[ChatCompletionToolParam] | list[FunctionToolParam]: ...
+
     def tool_definitions(
         self, api: Literal["chat.completions", "responses"]
-    ) -> list[ChatCompletionToolParam] | list[FunctionToolParam]:
+    ) -> (
+        list[ChatCompletionToolParam]
+        | list[FunctionToolParam]
+        | list[ChatCompletionToolParam | FunctionToolParam]
+    ):
         """
         Tool definitions for the `tools` array in the API request.
         """
-        if api == "responses":
-            return [tool.model_tool_definition(api) for tool in self.tool_classes]
         return [tool.model_tool_definition(api) for tool in self.tool_classes]
 
     def run_tool_call(

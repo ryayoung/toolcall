@@ -136,6 +136,12 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         cls, api: Literal["chat.completions"]
     ) -> ChatCompletionToolParam: ...
 
+    @overload
+    @classmethod
+    def model_tool_definition(  # pragma: no cover
+        cls, api: Literal["chat.completions", "responses"]
+    ) -> ChatCompletionToolParam | FunctionToolParam: ...
+
     @classmethod
     def model_tool_definition(
         cls, api: Literal["chat.completions", "responses"]

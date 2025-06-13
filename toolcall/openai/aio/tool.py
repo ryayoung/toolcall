@@ -1,11 +1,4 @@
-from typing import (
-    Any,
-    Callable,
-    Literal,
-    Self,
-    ClassVar,
-    overload,
-)
+from typing import Any, Callable, Literal, ClassVar, overload
 from textwrap import dedent
 import pydantic
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
@@ -79,28 +72,6 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         raise NotImplementedError(f"{type(self).__name__}.model_tool_handler()")
 
     @classmethod
-    def model_tool_format_invalid_arguments_error(
-        cls, err: pydantic.ValidationError
-    ) -> str:
-        """
-        Format a pydantic validation error for the tool message to the LLM.
-        """
-        return str(err)
-
-    @classmethod
-    def model_tool_format_explicit_error(cls, err: ToolErrorMessageForLLMToSee) -> str:
-        """
-        Format an explicit error from the handler, for the tool message to the LLM.
-        """
-        return str(err)
-
-    @classmethod
-    def model_tool_validate_tool_call(cls, name: str, arguments: str) -> Self:
-        """
-        Validate tool call into an instance of this class.
-        """
-        assert name == cls.model_tool_name()
-        return cls.model_validate_json(arguments)
     def model_tool_json_schema(cls) -> dict:
         """
         Get the JSON schema to be used in the function definition.
@@ -170,12 +141,13 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         """
         call = standardize_tool_call(call)
         try:
-            self = cls.model_tool_validate_tool_call(call.name, call.arguments)
+            self = cls.model_validate_json(call.arguments)
         except pydantic.ValidationError as e:
             return ToolCallFailure(
                 call_id=call.id,
-                result_content=cls.model_tool_format_invalid_arguments_error(e),
+                result_content=str(e),
                 fail_reason="invalid_arguments",
+                exception=e,
             )
 
         try:
@@ -183,8 +155,9 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         except ErrorForLLMToSee as e:
             return ToolCallFailure(
                 call_id=call.id,
-                result_content=cls.model_tool_format_explicit_error(e),
+                result_content=str(e),
                 fail_reason="explicit_handler_error",
+                exception=e,
             )
 
         result = self.model_tool_validate_handler_result(result)

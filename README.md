@@ -1844,21 +1844,6 @@ call. Its fields are arguments that the LLM will fill in. Its `model_tool_handle
 
 - **Config: Methods**
 
-    Aside from `model_tool_handler()` (which you must implement if tool-calling), other
-    methods are available for you to easily override, if you need to change behavior.
-
-    - `model_tool_format_invalid_arguments_error(cls, ...) -> str`
-        - Takes a `pydantic.ValidationError`
-    - `model_tool_format_explicit_error(cls, ...) -> str`
-        - Takes a `ToolErrorMessageForLLMToSee`
-    - `model_tool_validate_tool_call(cls, ...) -> Self`
-        - Construct an instance of this class, given a name and arguments for a tool call.
-    - `model_tool_generate_json_schema(cls) -> dict`
-
-- **Usage: Methods**
-
-    Several other methods are provided for you to use (not override).
-
     - `model_tool_name(cls) -> str`
     - `model_tool_json_schema(cls) -> dict`
 

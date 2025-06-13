@@ -28,6 +28,7 @@ class ErrorForLLMToSee(Exception):
 
     pass
 
+
 # Deprecated alias
 ToolErrorMessageForLLMToSee = ErrorForLLMToSee
 
@@ -42,9 +43,7 @@ class ToolHandlerResult[ContextOut](NamedTuple):
 
 
 type ToolCallFailReason = Literal[
-    "invalid_name",
-    "invalid_arguments",
-    "explicit_handler_error",
+    "invalid_name", "invalid_arguments", "explicit_handler_error"
 ]
 
 type ToolMessageContent = str | Iterable[ChatCompletionContentPartTextParam]
@@ -88,6 +87,7 @@ class ToolCallSuccess[ContextOut](BaseToolCallResult):
     """
 
     fail_reason: None = None
+    exception: None = None
     context: ContextOut
 
 
@@ -98,6 +98,7 @@ class ToolCallFailure(BaseToolCallResult):
     """
 
     fail_reason: ToolCallFailReason
+    exception: Exception
     context: None = None
 
 

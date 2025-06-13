@@ -3,14 +3,11 @@ from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
-from openai.types.responses.function_tool_param import (
-    FunctionToolParam,
-)
-from openai.types.responses.response_function_tool_call import (
-    ResponseFunctionToolCall,
-)
+from openai.types.responses.function_tool_param import FunctionToolParam
+from openai.types.responses.response_function_tool_call import ResponseFunctionToolCall
 from .tool import LLMFunctionTool
 from ..common import (
+    ErrorForLLMToSee,
     StandardToolCall,
     ToolCallFailure,
     ToolCallResult,
@@ -31,7 +28,11 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         Can either be used alone, or as a decorator over a tool class.
         """
         self[tool.model_tool_name()] = tool
-        # This is dark magic, but it works.
+        # This intentionally-incorrect use of `cast()` is **necessary**, because:
+        #   1. We're restricting func arg type to a **specialized** generic type.
+        #   2. We want to let this function be used as a decorator on a class
+        #      without type checkers thinking the class's type has changed.
+        # It works by causing type checkers to drop the return type entirely.
         return cast(..., tool)  # pyright: ignore[reportInvalidTypeForm]
 
     @property
@@ -82,10 +83,12 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         call = standardize_tool_call(call)
         if tool := self.get(call.name):
             return tool.model_tool_run_tool_call(call, context)
+        exception = ErrorForLLMToSee(f"Function `{call.name}` not found.")
         return ToolCallFailure(
             call_id=call.id,
-            result_content=f"Function `{call.name}` not found.",
+            result_content=str(exception),
             fail_reason="invalid_name",
+            exception=exception,
         )
 
     def run_tool_calls(
@@ -112,12 +115,12 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         """
         return cls({tool.model_tool_name(): tool for tool in tools})
 
-    def __contains__(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, item: str | type[LLMFunctionTool]
-    ):
-        if not isinstance(item, str):
-            item = item.model_tool_name()
-        return super().__contains__(item)
+    def __contains__(self, item: object):
+        try:
+            if isinstance(item, type) and issubclass(item, LLMFunctionTool):
+                item = item.model_tool_name()
+        finally:
+            return super().__contains__(item)
 
     def pretty_definition(self, api: Literal["chat.completions", "responses"]) -> str:
         """

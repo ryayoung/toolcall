@@ -1,5 +1,8 @@
 import asyncio
 import pytest
+from toolcall.openai.common import (
+    BaseToolCallResult,
+)
 from toolcall.openai.aio import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
@@ -11,8 +14,17 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 
 
-def test_add_more_coverage():
+def test_misc():
     async def main():
+        example_result = BaseToolCallResult(
+            call_id="123",
+            result_content=[
+                {"text": "123", "type": "text"},
+                {"text": "345", "type": "text"},
+            ],
+        )
+        _ = example_result.output_item
+
         class MyEmptyTool(LLMFunctionTool):
             model_tool_strict = True
             model_tool_custom_json_schema = {"foo": "bar"}

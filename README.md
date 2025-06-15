@@ -66,7 +66,7 @@ from openai.types.chat.chat_completion_message_param import (
 from toolcall.openai.core import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -159,9 +159,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 def assistant_take_turn(
     messages: list[ChatCompletionMessageParam],
@@ -274,7 +274,7 @@ from openai.types.chat.chat_completion_message_param import (
 from toolcall.openai.aio import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -367,9 +367,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    async def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 async def assistant_take_turn(
     messages: list[ChatCompletionMessageParam],
@@ -479,7 +479,7 @@ from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.core import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -572,9 +572,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 def assistant_take_turn(
     messages: list[ResponseInputItemParam],
@@ -683,7 +683,7 @@ from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.aio import (
     LLMFunctionToolGroup,
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -776,9 +776,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    async def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 async def assistant_take_turn(
     messages: list[ResponseInputItemParam],
@@ -894,7 +894,7 @@ from openai.types.chat.chat_completion_message_param import (
 )
 from toolcall.openai.core import (
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -977,9 +977,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 def assistant_take_turn(
     messages: list[ChatCompletionMessageParam],
@@ -1116,7 +1116,7 @@ from openai.types.chat.chat_completion_message_param import (
 )
 from toolcall.openai.aio import (
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -1199,9 +1199,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    async def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 async def assistant_take_turn(
     messages: list[ChatCompletionMessageParam],
@@ -1335,7 +1335,7 @@ from openai import OpenAI
 from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.core import (
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -1418,9 +1418,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 def assistant_take_turn(
     messages: list[ResponseInputItemParam],
@@ -1554,7 +1554,7 @@ from openai import AsyncOpenAI
 from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.aio import (
     LLMFunctionTool,
-    ToolHandlerResult,
+    HandlerResult,
     ErrorForLLMToSee,
 )
 
@@ -1637,9 +1637,9 @@ class StockPriceTool(LLMFunctionTool[None, float]):
         "required": ["ticker", "exchange"],
     }
 
-    async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+    async def model_tool_handler(self, context: None) -> HandlerResult[float]:
         result = f"{self.ticker} is currently trading at $100."
-        return ToolHandlerResult(result_content=result, context=1.234)
+        return HandlerResult(result_content=result, context=1.234)
 
 async def assistant_take_turn(
     messages: list[ResponseInputItemParam],

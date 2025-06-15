@@ -10,7 +10,7 @@ def test_example():
     from openai.types.responses.response_input_param import ResponseInputItemParam
     from toolcall.openai.aio import (
         LLMFunctionTool,
-        ToolHandlerResult,
+        HandlerResult,
         ErrorForLLMToSee,
     )
 
@@ -93,9 +93,9 @@ def test_example():
             "required": ["ticker", "exchange"],
         }
 
-        async def model_tool_handler(self, context: None) -> ToolHandlerResult[float]:
+        async def model_tool_handler(self, context: None) -> HandlerResult[float]:
             result = f"{self.ticker} is currently trading at $100."
-            return ToolHandlerResult(result_content=result, context=1.234)
+            return HandlerResult(result_content=result, context=1.234)
 
     async def assistant_take_turn(
         messages: list[ResponseInputItemParam],

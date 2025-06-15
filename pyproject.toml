@@ -21,18 +21,18 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries"
 ]
 dependencies = [
+    "openai>=1.86.0",
     "pydantic>=2.11",
 ]
 [dependency-groups]
 dev = [
     "black>=25.1.0",
-    "openai>=1.86.0",
     "pyright>=1.1.402",
     "pytest>=8.4.0",
-    "pytest-asyncio>=1.0.0",
     "pytest-cov>=6.2.1",
     "ruff>=0.11.13",
     "taskipy>=1.14.1",
@@ -43,9 +43,6 @@ packages = ["toolcall"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["toolcall"]
-
-[tool.pytest.ini_options]
-asyncio_default_fixture_loop_scope = "module"
 
 [tool.taskipy.tasks]
 format = "ruff format"

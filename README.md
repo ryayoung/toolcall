@@ -1,6 +1,7 @@
 # toolcall
 
 [![PyPI](https://img.shields.io/pypi/v/toolcall)](https://pypi.org/project/toolcall/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/toolcall.svg)](https://pypi.python.org/pypi/toolcall/)
 [![Tests](https://github.com/ryayoung/toolcall/actions/workflows/tests.yml/badge.svg)](https://github.com/ryayoung/toolcall/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/ryayoung/toolcall/branch/main/graph/badge.svg)](https://codecov.io/gh/ryayoung/toolcall)
 [![License](https://img.shields.io/github/license/ryayoung/toolcall)](https://github.com/ryayoung/toolcall/blob/main/LICENSE)

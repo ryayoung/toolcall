@@ -97,7 +97,7 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         description = dedent(description).strip()
 
         return StandardToolDefinition(
-            name=name, description=description, schema=schema, strict=strict
+            name=name, description=description, json_schema=schema, strict=strict
         )
 
     @classmethod
@@ -198,22 +198,8 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         return std.json_format_def_for_chat_completions_api()
 
     @classmethod
-    def model_tool_pretty_definition(
-        cls, api: Literal["chat.completions", "responses"]
-    ) -> str:
+    def model_tool_pretty_definition(cls) -> str:
         """
         FOR DEBUGGING ONLY, get a pretty representation of the tool definition.
         """
-        import json
-
-        definition = json.dumps(cls.model_tool_definition(api), indent=4)
-
-        # If available, use black, since it's nicer than default json indentation.
-        try:
-            import black  # pyright: ignore[reportMissingImports]
-
-            definition = black.format_str(definition, mode=black.Mode()).strip()
-        except:  # pragma: no cover
-            pass  # pragma: no cover
-
-        return f"{cls.__name__}({definition})"
+        return f"{cls.__name__}({cls.model_tool_standard_definition().to_pretty()})"

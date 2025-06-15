@@ -11,13 +11,13 @@ def test_definition_aio():
     tool_def_resp = Tool.model_tool_definition(api="responses")
     tool_def_json_chat = Tool.model_tool_json_format_definition(api="chat.completions")
     tool_def_json_resp = Tool.model_tool_json_format_definition(api="responses")
-    _ = Tool.model_tool_pretty_definition(api="chat.completions")
+    _ = Tool.model_tool_pretty_definition()
 
     group = LLMFunctionToolGroup[None, None].from_list([Tool])
 
     tool_defs_chat = group.tool_definitions(api="chat.completions")
     tool_defs_resp = group.tool_definitions(api="responses")
-    _ = group.pretty_definition(api="chat.completions")
+    _ = group.pretty_definition()
 
     if TYPE_CHECKING:
         from openai import OpenAI
@@ -50,13 +50,13 @@ def test_definition_core():
     tool_def_resp = Tool.model_tool_definition(api="responses")
     tool_def_json_chat = Tool.model_tool_json_format_definition(api="chat.completions")
     tool_def_json_resp = Tool.model_tool_json_format_definition(api="responses")
-    _ = Tool.model_tool_pretty_definition(api="chat.completions")
+    _ = Tool.model_tool_pretty_definition()
 
     group = LLMFunctionToolGroup[None, None].from_list([Tool])
 
     tool_defs_chat = group.tool_definitions(api="chat.completions")
     tool_defs_resp = group.tool_definitions(api="responses")
-    _ = group.pretty_definition(api="chat.completions")
+    _ = group.pretty_definition()
 
     if TYPE_CHECKING:
         from openai import OpenAI

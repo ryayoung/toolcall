@@ -1,5 +1,5 @@
 from typing import Any
-from dataclasses import dataclass
+from pydantic import BaseModel
 from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
 from openai.types.chat import ChatCompletionToolParam
 from openai.types.responses import (
@@ -11,8 +11,7 @@ from openai.types.shared_params.response_format_json_schema import JSONSchema
 __all__ = ["StandardToolDefinition"]
 
 
-@dataclass(slots=True, frozen=True, kw_only=True)
-class StandardToolDefinition:
+class StandardToolDefinition(BaseModel):
     """
     A common data structure from which we can derive tool definitions and
     structured output format definitions for both the Chat Completions API
@@ -21,8 +20,8 @@ class StandardToolDefinition:
 
     name: str
     description: str
-    schema: dict[str, Any]
     strict: bool
+    json_schema: dict[str, Any]
 
     def tool_def_for_chat_completions_api(self) -> ChatCompletionToolParam:
         """
@@ -31,7 +30,7 @@ class StandardToolDefinition:
         function: FunctionDefinition = {
             "name": self.name,
             "description": self.description,
-            "parameters": self.schema,
+            "parameters": self.json_schema,
             "strict": self.strict,
         }
         return {"type": "function", "function": function}
@@ -44,7 +43,7 @@ class StandardToolDefinition:
             "type": "function",
             "name": self.name,
             "description": self.description,
-            "parameters": self.schema,
+            "parameters": self.json_schema,
             "strict": self.strict,
         }
 
@@ -55,7 +54,7 @@ class StandardToolDefinition:
         json_schema: JSONSchema = {
             "name": self.name,
             "description": self.description,
-            "schema": self.schema,
+            "schema": self.json_schema,
             "strict": self.strict,
         }
         return {"type": "json_schema", "json_schema": json_schema}
@@ -68,8 +67,22 @@ class StandardToolDefinition:
         """
         return {
             "name": self.name,
-            "schema": self.schema,
+            "schema": self.json_schema,
             "type": "json_schema",
             "description": self.description,
             "strict": self.strict,
         }
+
+    def to_pretty(self) -> str:
+        """For debugging purposes, get a pretty representation of the data."""
+        definition = self.model_dump_json(indent=4)
+
+        # If available, use black, since it's nicer than default json indentation.
+        try:
+            import black  # pyright: ignore[reportMissingImports]
+
+            definition = black.format_str(definition, mode=black.Mode()).strip()
+        except:  # pragma: no cover
+            pass  # pragma: no cover
+
+        return definition

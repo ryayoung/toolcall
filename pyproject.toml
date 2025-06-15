@@ -50,8 +50,13 @@ typecheck = "pyright"
 tests = "pytest --cov=toolcall --cov-branch -vvs"
 
 [tool.pyright]
+typeCheckingMode = "strict"
 reportUnusedImport = "error"
 reportMissingParameterType = "error"
+reportUnnecessaryIsInstance = false
+reportUnnecessaryTypeIgnoreComment = "error"
+venvPath = "."
+venv = ".venv"
 
 [tool.coverage.report]
 show_missing = true

@@ -1,4 +1,4 @@
-from typing import Callable, Literal, ClassVar, overload
+from typing import Any, Callable, Literal, ClassVar, overload
 from textwrap import dedent
 import pydantic
 from openai.types.chat import ChatCompletionToolParam
@@ -53,7 +53,7 @@ class BaseFunctionToolModel[ContextIn, ContextOut](pydantic.BaseModel):
     Class config: Custom description to use instead of the class docstring.
     """
 
-    model_tool_custom_json_schema: ClassVar[dict | None] = None
+    model_tool_custom_json_schema: ClassVar[dict[str, Any] | None] = None
     """
     Class config: Use a custom JSON schema instead of letting Pydantic generate one.
     """
@@ -65,7 +65,7 @@ class BaseFunctionToolModel[ContextIn, ContextOut](pydantic.BaseModel):
         raise NotImplementedError(f"{type(self).__name__}.model_tool_handler()")
 
     @classmethod
-    def model_tool_json_schema(cls) -> dict:
+    def model_tool_json_schema(cls) -> dict[str, Any]:
         """
         Get the JSON schema to be used in the function definition.
         """

@@ -79,7 +79,7 @@ class StandardToolDefinition(BaseModel):
 
         # If available, use black, since it's nicer than default json indentation.
         try:
-            import black  # pyright: ignore[reportMissingImports]
+            import black
 
             definition = black.format_str(definition, mode=black.Mode()).strip()
         except:  # pragma: no cover

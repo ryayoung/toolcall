@@ -1,4 +1,4 @@
-from typing import Literal, Sequence, cast, overload
+from typing import Literal, Sequence, overload
 from openai.types.chat import ChatCompletionToolParam
 from openai.types.responses import FunctionToolParam
 from ._tool import BaseFunctionToolModel
@@ -27,15 +27,10 @@ class FunctionToolGroup[ContextIn, ContextOut](
 
     def add_tool(self, tool: type[BaseFunctionToolModel[ContextIn, ContextOut]]):
         """
-        Can either be used alone, or as a decorator over a tool class.
+        Add a tool to the group.
         """
         self[tool.model_tool_name()] = tool
-        # This intentionally-incorrect use of `cast()` is **necessary**, because:
-        #   1. We're restricting func arg type to a **specialized** generic type.
-        #   2. We want to let this function be used as a decorator on a class
-        #      without type checkers thinking the class's type has changed.
-        # It works by causing type checkers to drop the return type entirely.
-        return cast(..., tool)  # pyright: ignore[reportInvalidTypeForm]
+        return tool
 
     def run_tool_call(
         self, call: AnyToolCall, context: ContextIn

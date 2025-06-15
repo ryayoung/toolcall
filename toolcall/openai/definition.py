@@ -47,3 +47,29 @@ class StandardToolDefinition:
             "parameters": self.schema,
             "strict": self.strict,
         }
+
+    def json_format_def_for_chat_completions_api(self) -> ResponseFormatJSONSchema:
+        """
+        JSON Schema format for `response_format` field in Chat Completions API.
+        """
+        json_schema: JSONSchema = {
+            "name": self.name,
+            "description": self.description,
+            "schema": self.schema,
+            "strict": self.strict,
+        }
+        return {"type": "json_schema", "json_schema": json_schema}
+
+    def json_format_def_for_responses_api(
+        self,
+    ) -> ResponseFormatTextJSONSchemaConfigParam:
+        """
+        JSON Schema format def for `text.format` field in the Responses API.
+        """
+        return {
+            "name": self.name,
+            "schema": self.schema,
+            "type": "json_schema",
+            "description": self.description,
+            "strict": self.strict,
+        }

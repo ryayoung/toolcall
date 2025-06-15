@@ -7,24 +7,24 @@ from openai.types.responses import (
     ResponseFormatTextJSONSchemaConfigParam,
     FunctionToolParam,
 )
-from ..result import (
+from .._result import (
     ToolCallResult,
     ToolCallSuccess,
     ToolCallFailure,
     ErrorForLLMToSee,
 )
-from ..definition import StandardToolDefinition
-from ..call import StandardToolCall, AnyToolCall
+from .._definition import StandardToolDefinition
+from .._call import StandardToolCall, AnyToolCall
 
 
-__all__ = ["LLMFunctionTool"]
+__all__ = ["BaseFunctionToolModel"]
 
 
-class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
+class BaseFunctionToolModel[ContextIn, ContextOut](pydantic.BaseModel):
     """
-    Base class for defining an OpenAI function to be called by the LLM.
+    Pydantic BaseModel with utilities for structured communication with LLMs.
 
-    This is equally useful for tool-calling as well as structured output.
+    Equally useful for function-tool calling and structured output.
     """
 
     model_config = pydantic.ConfigDict(use_attribute_docstrings=True)
@@ -58,7 +58,7 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
     Class config: Use a custom JSON schema instead of letting Pydantic generate one.
     """
 
-    async def model_tool_handler(self, context: ContextIn, /) -> tuple[str, ContextOut]:
+    def model_tool_handler(self, context: ContextIn, /) -> tuple[str, ContextOut]:
         """
         Subclasses should override this with the handling logic for the tool.
         """
@@ -101,7 +101,7 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         )
 
     @classmethod
-    async def model_tool_run_tool_call(
+    def model_tool_run_tool_call(
         cls, call: AnyToolCall, context: ContextIn
     ) -> ToolCallResult[ContextOut]:
         """
@@ -121,7 +121,7 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
         # Run the subclass's handler and **only** catch errors they explicitly threw
         # with the intent of being caught here.
         try:
-            result = await self.model_tool_handler(context)
+            result = self.model_tool_handler(context)
         except ErrorForLLMToSee as e:
             return ToolCallFailure(
                 call_id=call.id,
@@ -138,19 +138,17 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
 
     @overload
     @classmethod
-    def model_tool_definition(  # pragma: no cover
-        cls, api: Literal["responses"]
-    ) -> FunctionToolParam: ...
+    def model_tool_definition(cls, api: Literal["responses"]) -> FunctionToolParam: ...
 
     @overload
     @classmethod
-    def model_tool_definition(  # pragma: no cover
+    def model_tool_definition(
         cls, api: Literal["chat.completions"]
     ) -> ChatCompletionToolParam: ...
 
     @overload
     @classmethod
-    def model_tool_definition(  # pragma: no cover
+    def model_tool_definition(
         cls, api: Literal["chat.completions", "responses"]
     ) -> ChatCompletionToolParam | FunctionToolParam: ...
 
@@ -168,19 +166,19 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
 
     @overload
     @classmethod
-    def model_tool_json_format_definition(  # pragma: no cover
+    def model_tool_json_format_definition(
         cls, api: Literal["responses"]
     ) -> ResponseFormatTextJSONSchemaConfigParam: ...
 
     @overload
     @classmethod
-    def model_tool_json_format_definition(  # pragma: no cover
+    def model_tool_json_format_definition(
         cls, api: Literal["chat.completions"]
     ) -> ResponseFormatJSONSchema: ...
 
     @overload
     @classmethod
-    def model_tool_json_format_definition(  # pragma: no cover
+    def model_tool_json_format_definition(
         cls, api: Literal["chat.completions", "responses"]
     ) -> ResponseFormatTextJSONSchemaConfigParam | ResponseFormatJSONSchema: ...
 

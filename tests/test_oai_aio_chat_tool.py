@@ -11,7 +11,7 @@ def test_example():
         ChatCompletionMessageParam,
     )
     from toolcall.openai.aio import (
-        LLMFunctionTool,
+        BaseFunctionToolModel,
         HandlerResult,
         ErrorForLLMToSee,
     )
@@ -41,7 +41,7 @@ def test_example():
             print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
 
     # Simple style of tool definition:
-    class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+    class get_weather(BaseFunctionToolModel):  # <-- Pydantic BaseModel extension
         """Get the weather somewhere."""
 
         city: str
@@ -68,7 +68,7 @@ def test_example():
             return result, 1.234
 
     # More explicit style:
-    class StockPriceTool(LLMFunctionTool[None, float]):
+    class StockPriceTool(BaseFunctionToolModel[None, float]):
         ticker: str
         exchange: Literal["NASDAQ", "NYSE"]
 

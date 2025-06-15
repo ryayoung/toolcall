@@ -10,8 +10,8 @@ def test_example():
         ChatCompletionMessageParam,
     )
     from toolcall.openai.core import (
-        LLMFunctionToolGroup,
-        LLMFunctionTool,
+        FunctionToolGroup,
+        BaseFunctionToolModel,
         HandlerResult,
         ErrorForLLMToSee,
     )
@@ -45,13 +45,15 @@ def test_example():
     # input/output context types. If they do, then the group's run_tool_call() and
     # run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
     # letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
-    tool_group = LLMFunctionToolGroup[None, float]()
+    tool_group = FunctionToolGroup[None, float]()
 
     # At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
     # Its bigger purpose is static type enforcement that the tool's input/output context
     # types satisfy those of the group. (e.g. [None, None])
     @tool_group.add_tool
-    class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+    class get_weather(
+        BaseFunctionToolModel[None, float]
+    ):  # <-- Pydantic BaseModel extension
         """Get the weather somewhere."""
 
         city: str
@@ -78,7 +80,7 @@ def test_example():
             return result, 1.234
 
     @tool_group.add_tool
-    class StockPriceTool(LLMFunctionTool[None, float]):
+    class StockPriceTool(BaseFunctionToolModel[None, float]):
         ticker: str
         exchange: Literal["NASDAQ", "NYSE"]
 

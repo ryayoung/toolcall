@@ -1,8 +1,7 @@
 import pytest
 import asyncio
 from typing import TYPE_CHECKING
-from toolcall.openai.call import StandardToolCall
-from toolcall.openai.result import ToolCallSuccess
+from toolcall.openai.core import StandardToolCall, ToolCallSuccess
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageToolCall
 from openai.types.responses import ResponseFunctionToolCall
@@ -53,18 +52,18 @@ def test_result():
 def test_call_handler_core():
     def main():
         from toolcall.openai.core import (
-            LLMFunctionTool,
-            LLMFunctionToolGroup,
+            BaseFunctionToolModel,
+            FunctionToolGroup,
             ErrorForLLMToSee,
         )
 
-        class NotImplementedTool(LLMFunctionTool[None, None]):
+        class NotImplementedTool(BaseFunctionToolModel[None, None]):
             x: int = 0
 
-        group = LLMFunctionToolGroup.from_list([NotImplementedTool])
+        group = FunctionToolGroup.from_list([NotImplementedTool])
 
         @group.add_tool
-        class Tool(LLMFunctionTool[None, None]):
+        class Tool(BaseFunctionToolModel[None, None]):
             x: int = 0
 
             def model_tool_handler(self, _) -> tuple[str, None]:
@@ -109,18 +108,18 @@ def test_call_handler_core():
 def test_call_handler_aio():
     async def main():
         from toolcall.openai.aio import (
-            LLMFunctionTool,
-            LLMFunctionToolGroup,
+            BaseFunctionToolModel,
+            FunctionToolGroup,
             ErrorForLLMToSee,
         )
 
-        class NotImplementedTool(LLMFunctionTool[None, None]):
+        class NotImplementedTool(BaseFunctionToolModel[None, None]):
             x: int = 0
 
-        group = LLMFunctionToolGroup.from_list([NotImplementedTool])
+        group = FunctionToolGroup.from_list([NotImplementedTool])
 
         @group.add_tool
-        class Tool(LLMFunctionTool[None, None]):
+        class Tool(BaseFunctionToolModel[None, None]):
             x: int = 0
 
             async def model_tool_handler(self, _) -> tuple[str, None]:

@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, NamedTuple
+from typing import Annotated, Literal, NamedTuple, TYPE_CHECKING
 from dataclasses import dataclass
 import pydantic
 from openai.types.chat import ChatCompletionToolMessageParam
@@ -6,13 +6,14 @@ from openai.types.responses.response_input_param import FunctionCallOutput
 
 __all__ = [
     "ErrorForLLMToSee",
-    "ToolErrorMessageForLLMToSee",
     "HandlerResult",
-    "ToolHandlerResult",
     "ToolCallFailReason",
     "ToolCallSuccess",
     "ToolCallFailure",
     "ToolCallResult",
+    # Deprecated
+    "ToolErrorMessageForLLMToSee",
+    "ToolHandlerResult",
 ]
 
 
@@ -25,10 +26,6 @@ class ErrorForLLMToSee(Exception):
     pass
 
 
-# Deprecated alias
-ToolErrorMessageForLLMToSee = ErrorForLLMToSee
-
-
 class HandlerResult[ContextOut](NamedTuple):
     """
     Result of a tool's user-defined `model_tool_handler()`
@@ -36,10 +33,6 @@ class HandlerResult[ContextOut](NamedTuple):
 
     result_content: str
     context: ContextOut
-
-
-# Deprecated alias
-ToolHandlerResult = HandlerResult
 
 
 type ToolCallFailReason = Literal[
@@ -104,3 +97,16 @@ class ToolCallFailure(_BaseToolCallResult):
 type ToolCallResult[ContextOut] = Annotated[
     ToolCallSuccess[ContextOut] | ToolCallFailure, pydantic.Discriminator("fail_reason")
 ]
+
+
+if TYPE_CHECKING:
+    from typing_extensions import deprecated
+
+    @deprecated("Renamed ErrorForLLMToSee")
+    class ToolErrorMessageForLLMToSee(ErrorForLLMToSee): ...
+
+    @deprecated("Renamed HandlerResult")
+    class ToolHandlerResult[Out](HandlerResult[Out]): ...
+else:
+    ToolErrorMessageForLLMToSee = ErrorForLLMToSee
+    ToolHandlerResult = HandlerResult

@@ -65,8 +65,8 @@ from openai.types.chat.chat_completion_message_param import (
     ChatCompletionMessageParam,
 )
 from toolcall.openai.core import (
-    LLMFunctionToolGroup,
-    LLMFunctionTool,
+    FunctionToolGroup,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -100,13 +100,13 @@ def main():
 # input/output context types. If they do, then the group's run_tool_call() and
 # run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
 # letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
-tool_group = LLMFunctionToolGroup[None, float]()
+tool_group = FunctionToolGroup[None, float]()
 
 # At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
 # Its bigger purpose is static type enforcement that the tool's input/output context
 # types satisfy those of the group. (e.g. [None, None])
 @tool_group.add_tool
-class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel[None, float]):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -133,7 +133,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
         return result, 1.234
 
 @tool_group.add_tool
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -273,8 +273,8 @@ from openai.types.chat.chat_completion_message_param import (
     ChatCompletionMessageParam,
 )
 from toolcall.openai.aio import (
-    LLMFunctionToolGroup,
-    LLMFunctionTool,
+    FunctionToolGroup,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -308,13 +308,13 @@ async def main():
 # input/output context types. If they do, then the group's run_tool_call() and
 # run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
 # letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
-tool_group = LLMFunctionToolGroup[None, float]()
+tool_group = FunctionToolGroup[None, float]()
 
 # At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
 # Its bigger purpose is static type enforcement that the tool's input/output context
 # types satisfy those of the group. (e.g. [None, None])
 @tool_group.add_tool
-class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel[None, float]):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -341,7 +341,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
         return result, 1.234
 
 @tool_group.add_tool
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -478,8 +478,8 @@ from typing import Literal
 from openai import OpenAI
 from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.core import (
-    LLMFunctionToolGroup,
-    LLMFunctionTool,
+    FunctionToolGroup,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -513,13 +513,13 @@ def main():
 # input/output context types. If they do, then the group's run_tool_call() and
 # run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
 # letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
-tool_group = LLMFunctionToolGroup[None, float]()
+tool_group = FunctionToolGroup[None, float]()
 
 # At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
 # Its bigger purpose is static type enforcement that the tool's input/output context
 # types satisfy those of the group. (e.g. [None, None])
 @tool_group.add_tool
-class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel[None, float]):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -546,7 +546,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
         return result, 1.234
 
 @tool_group.add_tool
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -682,8 +682,8 @@ from typing import Literal
 from openai import AsyncOpenAI
 from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.aio import (
-    LLMFunctionToolGroup,
-    LLMFunctionTool,
+    FunctionToolGroup,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -717,13 +717,13 @@ async def main():
 # input/output context types. If they do, then the group's run_tool_call() and
 # run_tool_calls() methods are suitable for automatic dispatch of tool calls, while still
 # letting you pass arbitrary data in and out of the tool handlers in a type-safe way.
-tool_group = LLMFunctionToolGroup[None, float]()
+tool_group = FunctionToolGroup[None, float]()
 
 # At runtime this decorator just adds the class to the group {"get_weather": WeatherTool}
 # Its bigger purpose is static type enforcement that the tool's input/output context
 # types satisfy those of the group. (e.g. [None, None])
 @tool_group.add_tool
-class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel[None, float]):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -750,7 +750,7 @@ class get_weather(LLMFunctionTool[None, float]):  # <-- Pydantic BaseModel exten
         return result, 1.234
 
 @tool_group.add_tool
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -894,7 +894,7 @@ from openai.types.chat.chat_completion_message_param import (
     ChatCompletionMessageParam,
 )
 from toolcall.openai.core import (
-    LLMFunctionTool,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -924,7 +924,7 @@ def main():
         print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
 
 # Simple style of tool definition:
-class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -951,7 +951,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
         return result, 1.234
 
 # More explicit style:
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -1116,7 +1116,7 @@ from openai.types.chat.chat_completion_message_param import (
     ChatCompletionMessageParam,
 )
 from toolcall.openai.aio import (
-    LLMFunctionTool,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -1146,7 +1146,7 @@ async def main():
         print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
 
 # Simple style of tool definition:
-class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -1173,7 +1173,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
         return result, 1.234
 
 # More explicit style:
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -1335,7 +1335,7 @@ from typing import Literal
 from openai import OpenAI
 from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.core import (
-    LLMFunctionTool,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -1365,7 +1365,7 @@ def main():
         print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
 
 # Simple style of tool definition:
-class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -1392,7 +1392,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
         return result, 1.234
 
 # More explicit style:
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -1554,7 +1554,7 @@ from typing import Literal
 from openai import AsyncOpenAI
 from openai.types.responses.response_input_param import ResponseInputItemParam
 from toolcall.openai.aio import (
-    LLMFunctionTool,
+    BaseFunctionToolModel,
     HandlerResult,
     ErrorForLLMToSee,
 )
@@ -1584,7 +1584,7 @@ async def main():
         print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
 
 # Simple style of tool definition:
-class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
+class get_weather(BaseFunctionToolModel):  # <-- Pydantic BaseModel extension
     """Get the weather somewhere."""
 
     city: str
@@ -1611,7 +1611,7 @@ class get_weather(LLMFunctionTool):  # <-- Pydantic BaseModel extension
         return result, 1.234
 
 # More explicit style:
-class StockPriceTool(LLMFunctionTool[None, float]):
+class StockPriceTool(BaseFunctionToolModel[None, float]):
     ticker: str
     exchange: Literal["NASDAQ", "NYSE"]
 
@@ -1773,22 +1773,22 @@ Output:
 - `core/`: Standard (synchronous) API
 
     ```python
-    from toolcall.openai.core import LLMFunctionTool
+    from toolcall.openai.core import BaseFunctionToolModel
 
-    class GetWeather(LLMFunctionTool):
+    class GetWeather(BaseFunctionToolModel):
         def model_tool_handler(self, context: None): ...
     ```
 
 - `aio/`: Asyncio API with `async/await` syntax for tool handlers.
 
     ```python
-    from toolcall.openai.aio import LLMFunctionTool
+    from toolcall.openai.aio import BaseFunctionToolModel
 
-    class GetWeather(LLMFunctionTool):
+    class GetWeather(BaseFunctionToolModel):
         async def model_tool_handler(self, context: None): ...
     ```
 
-### `class LLMFunctionTool[ContextIn, ContextOut](BaseModel)`
+### `class BaseFunctionToolModel[ContextIn, ContextOut](BaseModel)`
 
 A [Pydantic BaseModel](https://docs.pydantic.dev/latest/) that represents a tool for an LLM to
 call. Its fields are arguments that the LLM will fill in. Its `model_tool_handler()` method
@@ -1852,9 +1852,9 @@ call. Its fields are arguments that the LLM will fill in. Its `model_tool_handle
 #### Examples
 
 ```python
-from toolcall.openai.aio import LLMFunctionTool
+from toolcall.openai.aio import BaseFunctionToolModel
 
-class GetWeather(LLMFunctionTool[None, None]):  # LLM-facing name, "GetWeather"
+class GetWeather(BaseFunctionToolModel[None, None]):  # LLM-facing name, "GetWeather"
     """Get the weather in any city"""  # Default LLM-facing function description
 
     city: str
@@ -1896,9 +1896,9 @@ GetWeather:
 Let's define the same tool again, but customize/hardcode the definition.
 
 ```python
-from toolcall.openai.aio import LLMFunctionTool
+from toolcall.openai.aio import BaseFunctionToolModel
 
-class GetWeather(LLMFunctionTool[None, None]):
+class GetWeather(BaseFunctionToolModel[None, None]):
     city: str
 
     model_tool_custom_name = "get_weather"
@@ -1919,9 +1919,9 @@ This will behave the same as the earlier version.
 
 ---
 
-### `class LLMFunctionToolGroup[ContextIn, ContextOut](...)`
+### `class FunctionToolGroup[ContextIn, ContextOut](...)`
 
-- Parent: `dict[str, type[LLMFunctionTool[ContextIn, ContextOut]]]`
+- Parent: `dict[str, type[BaseFunctionToolModel[ContextIn, ContextOut]]]`
 
 A simple container that supports statically type-safe dynamic dispatch of tools.
 

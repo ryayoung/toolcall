@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING
 
 
 def test_definition_aio():
-    from toolcall.openai.aio import LLMFunctionTool, LLMFunctionToolGroup
+    from toolcall.openai.aio import BaseFunctionToolModel, FunctionToolGroup
 
-    class Tool(LLMFunctionTool[None, None]):
+    class Tool(BaseFunctionToolModel[None, None]):
         foo: str
 
     tool_def_chat = Tool.model_tool_definition(api="chat.completions")
@@ -13,7 +13,7 @@ def test_definition_aio():
     tool_def_json_resp = Tool.model_tool_json_format_definition(api="responses")
     _ = Tool.model_tool_pretty_definition()
 
-    group = LLMFunctionToolGroup[None, None].from_list([Tool])
+    group = FunctionToolGroup[None, None].from_list([Tool])
 
     tool_defs_chat = group.tool_definitions(api="chat.completions")
     tool_defs_resp = group.tool_definitions(api="responses")
@@ -41,9 +41,9 @@ def test_definition_aio():
 
 
 def test_definition_core():
-    from toolcall.openai.core import LLMFunctionTool, LLMFunctionToolGroup
+    from toolcall.openai.core import BaseFunctionToolModel, FunctionToolGroup
 
-    class Tool(LLMFunctionTool[None, None]):
+    class Tool(BaseFunctionToolModel[None, None]):
         foo: str
 
     tool_def_chat = Tool.model_tool_definition(api="chat.completions")
@@ -52,7 +52,7 @@ def test_definition_core():
     tool_def_json_resp = Tool.model_tool_json_format_definition(api="responses")
     _ = Tool.model_tool_pretty_definition()
 
-    group = LLMFunctionToolGroup[None, None].from_list([Tool])
+    group = FunctionToolGroup[None, None].from_list([Tool])
 
     tool_defs_chat = group.tool_definitions(api="chat.completions")
     tool_defs_resp = group.tool_definitions(api="responses")

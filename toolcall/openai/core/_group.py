@@ -1,15 +1,15 @@
 from typing import Literal, Sequence, cast, overload
 from openai.types.chat import ChatCompletionToolParam
 from openai.types.responses import FunctionToolParam
-from .tool import LLMFunctionTool
-from ..result import ToolCallResult, ToolCallFailure, ErrorForLLMToSee
-from ..call import StandardToolCall, AnyToolCall
+from ._tool import BaseFunctionToolModel
+from .._result import ToolCallResult, ToolCallFailure, ErrorForLLMToSee
+from .._call import StandardToolCall, AnyToolCall
 
-__all__ = ["LLMFunctionToolGroup"]
+__all__ = ["FunctionToolGroup"]
 
 
-class LLMFunctionToolGroup[ContextIn, ContextOut](
-    dict[str, type[LLMFunctionTool[ContextIn, ContextOut]]]
+class FunctionToolGroup[ContextIn, ContextOut](
+    dict[str, type[BaseFunctionToolModel[ContextIn, ContextOut]]]
 ):
     """
     A group of tools that have the same input and output context types, enabling
@@ -18,14 +18,14 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
 
     @classmethod
     def from_list[CtxIn, CtxOut](
-        cls, tools: Sequence[type[LLMFunctionTool[CtxIn, CtxOut]]]
-    ) -> "LLMFunctionToolGroup[CtxIn, CtxOut]":
+        cls, tools: Sequence[type[BaseFunctionToolModel[CtxIn, CtxOut]]]
+    ) -> "FunctionToolGroup[CtxIn, CtxOut]":
         """
         Create from a list of tool classes.
         """
-        return LLMFunctionToolGroup({t.model_tool_name(): t for t in tools})
+        return FunctionToolGroup({t.model_tool_name(): t for t in tools})
 
-    def add_tool(self, tool: type[LLMFunctionTool[ContextIn, ContextOut]]):
+    def add_tool(self, tool: type[BaseFunctionToolModel[ContextIn, ContextOut]]):
         """
         Can either be used alone, or as a decorator over a tool class.
         """
@@ -64,17 +64,17 @@ class LLMFunctionToolGroup[ContextIn, ContextOut](
         return [self.run_tool_call(c, context) for c in calls]
 
     @overload
-    def tool_definitions(  # pragma: no cover
+    def tool_definitions(
         self, api: Literal["responses"]
     ) -> list[FunctionToolParam]: ...
 
     @overload
-    def tool_definitions(  # pragma: no cover
+    def tool_definitions(
         self, api: Literal["chat.completions"]
     ) -> list[ChatCompletionToolParam]: ...
 
     @overload
-    def tool_definitions(  # pragma: no cover
+    def tool_definitions(
         self, api: Literal["chat.completions", "responses"]
     ) -> list[ChatCompletionToolParam] | list[FunctionToolParam]: ...
 

@@ -83,6 +83,6 @@ class StandardToolDefinition(BaseModel):
 
             definition = black.format_str(definition, mode=black.Mode()).strip()
         except:  # pragma: no cover
-            pass  # pragma: no cover
+            pass
 
         return definition

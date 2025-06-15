@@ -1,7 +1,7 @@
 def test_config_aio():
-    from toolcall.openai.aio import LLMFunctionTool
+    from toolcall.openai.aio import BaseFunctionToolModel
 
-    class RegularTool(LLMFunctionTool):
+    class RegularTool(BaseFunctionToolModel):
         """A docstring"""
 
         pass
@@ -12,7 +12,7 @@ def test_config_aio():
     definition = RegularTool.model_tool_standard_definition()
     assert definition.description == "A docstring"
 
-    class BaseTool(LLMFunctionTool):
+    class BaseTool(BaseFunctionToolModel):
         model_tool_name_generator = lambda name: name.upper()
 
     assert BaseTool.model_tool_name() == "BASETOOL"
@@ -31,9 +31,9 @@ def test_config_aio():
 
 
 def test_config_core():
-    from toolcall.openai.core import LLMFunctionTool
+    from toolcall.openai.core import BaseFunctionToolModel
 
-    class RegularTool(LLMFunctionTool):
+    class RegularTool(BaseFunctionToolModel):
         """A docstring"""
 
         pass
@@ -44,7 +44,7 @@ def test_config_core():
     definition = RegularTool.model_tool_standard_definition()
     assert definition.description == "A docstring"
 
-    class BaseTool(LLMFunctionTool):
+    class BaseTool(BaseFunctionToolModel):
         model_tool_name_generator = lambda name: name.upper()
 
     assert BaseTool.model_tool_name() == "BASETOOL"

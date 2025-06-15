@@ -15,7 +15,6 @@ from openai.types.responses.response_function_tool_call import (
 from ..common import (
     StandardToolCall,
     ErrorForLLMToSee,
-    ToolHandlerResult,
     ToolCallSuccess,
     ToolCallFailure,
     ToolCallResult,
@@ -63,9 +62,7 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
     Class config: Use a custom JSON schema instead of letting Pydantic generate one.
     """
 
-    def model_tool_handler(
-        self, context: ContextIn
-    ) -> ToolHandlerResult[ContextOut] | tuple[str, ContextOut]:
+    def model_tool_handler(self, context: ContextIn, /) -> tuple[str, ContextOut]:
         """
         Subclasses should override this with the handling logic for the tool.
         """
@@ -160,28 +157,17 @@ class LLMFunctionTool[ContextIn, ContextOut](pydantic.BaseModel):
                 exception=e,
             )
 
-        result = self.model_tool_validate_handler_result(result)
-        return ToolCallSuccess(
-            call_id=call.id,
-            result_content=result.result_content,
-            context=result.context,
-        )
+        if not isinstance(result, tuple) or len(result) != 2:
+            raise TypeError(f"Expected tuple of length 2 from {cls.__name__}'s handler")
+
+        content, ctx = result
+        return ToolCallSuccess(call_id=call.id, result_content=content, context=ctx)
 
     @classmethod
-    def model_tool_validate_handler_result(
-        cls, result: ToolHandlerResult[ContextOut] | tuple[str, ContextOut] | Any
-    ) -> ToolHandlerResult[ContextOut]:
         """
-        Standardize the handler's return value to a ToolHandlerResult.
         """
-        if not isinstance(result, tuple) or len(result) != 2:
-            expected = "ToolHandlerResult or a tuple of (str, ContextOut)"
-            raise TypeError(f"{cls.__name__} handler must return {expected}")
 
-        if not isinstance(result, ToolHandlerResult):
-            result = ToolHandlerResult(result[0], result[1])
 
-        return result
 
     @classmethod
     def model_tool_pretty_definition(

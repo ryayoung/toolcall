@@ -9,22 +9,9 @@ class Job(NamedTuple):
 
 
 jobs = (
-    Job(
-        "toolcall/openai/aio/__init__.py",
-        "toolcall/openai/core/__init__.py",
-    ),
-    Job(
-        "toolcall/openai/aio/_group.py",
-        "toolcall/openai/core/_group.py",
-    ),
-    Job(
-        "toolcall/openai/aio/_tool.py",
-        "toolcall/openai/core/_tool.py",
-    ),
-    Job(
-        "examples/aio/common.py",
-        "examples/core/common.py",
-    ),
+    Job("toolcall/openai/aio", "toolcall/openai/core"),
+    Job("examples/aio", "examples/core"),
+    Job("tests/test_oai_examples_aio.py", "tests/test_oai_examples_core.py"),
 )
 
 
@@ -32,8 +19,12 @@ def main():
     for source, destination in jobs:
         source_path = Path(source).absolute()
         destination_path = Path(destination).absolute()
-        assert source_path.is_file()
-        process_and_write(source_path, destination_path)
+        if source_path.is_file():
+            process_and_write(source_path, destination_path)
+        else:
+            for path in source_path.iterdir():
+                if path.suffix == ".py":
+                    process_and_write(path, destination_path / path.name)
 
 
 def process_and_write(source_file: Path, destination_file: Path):

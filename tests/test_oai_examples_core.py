@@ -1,4 +1,3 @@
-import asyncio
 from examples.aio import (
     chat_group,
     chat_output,
@@ -10,7 +9,7 @@ from examples.aio import (
 
 
 def test_aio():
-    async def main():
+    def main():
         runs = [
             chat_group.main(),
             chat_output.main(),
@@ -19,6 +18,6 @@ def test_aio():
             resp_output.main(),
             resp_tool.main(),
         ]
-        _ = await asyncio.gather(*runs)
+        _ = runs
 
-    asyncio.run(main())
+    main()

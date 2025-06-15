@@ -1,0 +1,49 @@
+from typing import Any
+from dataclasses import dataclass
+from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
+from openai.types.chat import ChatCompletionToolParam
+from openai.types.responses import (
+    FunctionToolParam,
+    ResponseFormatTextJSONSchemaConfigParam,
+)
+from openai.types.shared_params.response_format_json_schema import JSONSchema
+
+__all__ = ["StandardToolDefinition"]
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class StandardToolDefinition:
+    """
+    A common data structure from which we can derive tool definitions and
+    structured output format definitions for both the Chat Completions API
+    and the Responses API.
+    """
+
+    name: str
+    description: str
+    schema: dict[str, Any]
+    strict: bool
+
+    def tool_def_for_chat_completions_api(self) -> ChatCompletionToolParam:
+        """
+        Tool definition for the `tools` array in the Chat Completions API
+        """
+        function: FunctionDefinition = {
+            "name": self.name,
+            "description": self.description,
+            "parameters": self.schema,
+            "strict": self.strict,
+        }
+        return {"type": "function", "function": function}
+
+    def tool_def_for_responses_api(self) -> FunctionToolParam:
+        """
+        Tool definition for the `tools` array in the Responses API
+        """
+        return {
+            "type": "function",
+            "name": self.name,
+            "description": self.description,
+            "parameters": self.schema,
+            "strict": self.strict,
+        }

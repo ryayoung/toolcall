@@ -1,6 +1,6 @@
-import json
+# File generated from its async equivalent, examples/aio/chat_group.py
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
-from .common import tool_group, TOOLS_SYSTEM_PROMPT, openai_client
+from .common import tool_group, TOOLS_SYSTEM_PROMPT, openai_client, print_messages
 
 
 def main():
@@ -10,8 +10,7 @@ def main():
         {"role": "user", "content": user_prompt},
     ]
     assistant_take_turn(conversation)
-    for msg in conversation:
-        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+    print_messages(conversation[1:])
 
 
 def assistant_take_turn(conversation: list[ChatCompletionMessageParam]) -> None:
@@ -23,7 +22,7 @@ def assistant_take_turn(conversation: list[ChatCompletionMessageParam]) -> None:
 
     response = openai_client.chat.completions.create(
         messages=conversation,
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         tools=tool_group.tool_definitions(api="chat.completions"),
     )
     message = response.choices[0].message

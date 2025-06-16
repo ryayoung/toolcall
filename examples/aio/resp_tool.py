@@ -1,7 +1,6 @@
-import json
 import asyncio
 from openai.types.responses.response_input_param import ResponseInputItemParam
-from .common import say_hello, TOOLS_SYSTEM_PROMPT, openai_client
+from .common import say_hello, TOOLS_SYSTEM_PROMPT, openai_client, print_messages
 
 
 async def main():
@@ -11,8 +10,7 @@ async def main():
         {"role": "user", "content": user_prompt},
     ]
     await assistant_take_turn(conversation)
-    for msg in conversation:
-        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+    print_messages(conversation[1:])
 
 
 async def assistant_take_turn(conversation: list[ResponseInputItemParam]) -> None:
@@ -24,7 +22,7 @@ async def assistant_take_turn(conversation: list[ResponseInputItemParam]) -> Non
 
     response = await openai_client.responses.create(
         input=conversation,
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         tools=[say_hello.model_tool_definition(api="responses")],
     )
     for item in response.output:

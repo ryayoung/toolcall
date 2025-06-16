@@ -1,7 +1,6 @@
-import json
 import asyncio
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
-from .common import say_hello, TOOLS_SYSTEM_PROMPT, openai_client
+from .common import say_hello, TOOLS_SYSTEM_PROMPT, openai_client, print_messages
 
 
 async def main():
@@ -11,8 +10,7 @@ async def main():
         {"role": "user", "content": user_prompt},
     ]
     await assistant_take_turn(conversation)
-    for msg in conversation:
-        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+    print_messages(conversation[1:])
 
 
 async def assistant_take_turn(conversation: list[ChatCompletionMessageParam]) -> None:
@@ -24,7 +22,7 @@ async def assistant_take_turn(conversation: list[ChatCompletionMessageParam]) ->
 
     response = await openai_client.chat.completions.create(
         messages=conversation,
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         tools=[say_hello.model_tool_definition(api="chat.completions")],
     )
     message = response.choices[0].message

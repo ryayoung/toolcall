@@ -1,6 +1,6 @@
-import json
+# File generated from its async equivalent, examples/aio/resp_tool.py
 from openai.types.responses.response_input_param import ResponseInputItemParam
-from .common import say_hello, TOOLS_SYSTEM_PROMPT, openai_client
+from .common import say_hello, TOOLS_SYSTEM_PROMPT, openai_client, print_messages
 
 
 def main():
@@ -10,8 +10,7 @@ def main():
         {"role": "user", "content": user_prompt},
     ]
     assistant_take_turn(conversation)
-    for msg in conversation:
-        print("-" * 80 + "\n" + json.dumps(msg, indent=2).strip("{}"))
+    print_messages(conversation[1:])
 
 
 def assistant_take_turn(conversation: list[ResponseInputItemParam]) -> None:
@@ -23,7 +22,7 @@ def assistant_take_turn(conversation: list[ResponseInputItemParam]) -> None:
 
     response = openai_client.responses.create(
         input=conversation,
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         tools=[say_hello.model_tool_definition(api="responses")],
     )
     for item in response.output:

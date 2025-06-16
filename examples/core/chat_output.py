@@ -1,14 +1,11 @@
+# File generated from its async equivalent, examples/aio/chat_output.py
 from typing import Any
 import pydantic
 from toolcall.openai.core import BaseFunctionToolModel
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
-from .common import (
-    openai_client,
-    struct_output_system_prompt,
-    struct_output_user_prompt,
-    EntitiesResponse,
-    EntitiesResponseStrict,
-)
+from .common import openai_client, print_messages
+from .common import EntitiesResponse, EntitiesResponseStrict
+from .common import struct_output_system_prompt, struct_output_user_prompt
 
 
 def main():
@@ -17,14 +14,8 @@ def main():
             {"role": "system", "content": struct_output_system_prompt},
             {"role": "user", "content": struct_output_user_prompt},
         ]
-
         entities = assistant_debug_until_correct(response_model, conversation)
-
-        name = response_model.__name__
-        print(f"\n{'-' * 80}\n{'-' * 80}\n\nConversation for {name}:\n")
-        for msg in conversation[2:]:
-            print(f"{'-' * 80}\n\n{msg['role'].upper()}: {msg.get('content')}\n")
-        print(f"{'-' * 80}\n\n{name}:\n{entities}")
+        print_messages(conversation[1:] + [entities])
 
     run(EntitiesResponse)
     run(EntitiesResponseStrict)
@@ -47,7 +38,7 @@ def assistant_debug_until_correct[T: BaseFunctionToolModel[Any, Any]](
     format = response_model.model_tool_json_format_definition(api="chat.completions")
     response = openai_client.chat.completions.create(
         messages=conversation,
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         response_format=format,
     )
     message = response.choices[0].message

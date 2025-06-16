@@ -1,15 +1,11 @@
-import os
-from typing import Literal
+# File generated from its async equivalent, examples/aio/common.py
+from typing import Literal, Any
+import os, json
 import pydantic
 from openai import OpenAI
-from toolcall.openai.core import (
-    BaseFunctionToolModel,
-    HandlerResult,
-    ErrorForLLMToSee,
-)
+from toolcall.openai.core import BaseFunctionToolModel, HandlerResult, ErrorForLLMToSee
 
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
 
 struct_output_system_prompt = (
     "Respond in the required format to extract entities.\n\n"
@@ -65,7 +61,7 @@ class say_hello(BaseFunctionToolModel[None, None]):
     # Called after arguments are parsed/validated into an instance of this class.
     # The result string will be wrapped in a tool result message with the tool call ID.
     def model_tool_handler(self, _):
-        return f"Hello, {self.name}!", None
+        return f"Message delivered to {self.name}.", None
 
 
 class GetWeatherTool(BaseFunctionToolModel[int, float]):
@@ -135,3 +131,14 @@ from toolcall.openai.core import FunctionToolGroup
 # the same input and output context types.
 # That's why we cannot include `say_hello` here.
 tool_group = FunctionToolGroup.from_list([GetWeatherTool, StockPriceTool])
+
+
+def print_messages(messages: list[Any]) -> None:
+    print("=" * 80)
+    for msg in messages:
+        print("-" * 80)
+        if isinstance(msg, pydantic.BaseModel):
+            print(f"\n{repr(msg)}\n")
+        else:
+            msg = {k: v for k, v in msg.items() if v}
+            print(json.dumps(msg, indent=2).strip("{}"))

@@ -47,7 +47,7 @@ class StandardToolDefinition(BaseModel):
             "strict": self.strict,
         }
 
-    def json_format_def_for_chat_completions_api(self) -> ResponseFormatJSONSchema:
+    def format_for_chat_completions_api(self) -> ResponseFormatJSONSchema:
         """
         JSON Schema format for `response_format` field in Chat Completions API.
         """
@@ -59,7 +59,7 @@ class StandardToolDefinition(BaseModel):
         }
         return {"type": "json_schema", "json_schema": json_schema}
 
-    def json_format_def_for_responses_api(
+    def format_for_responses_api(
         self,
     ) -> ResponseFormatTextJSONSchemaConfigParam:
         """

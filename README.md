@@ -261,7 +261,7 @@ def assistant_debug_until_correct[T: BaseFunctionToolModel[Any, Any]](
 
     # 1. Request an LLM response, and append it to the conversation.
 
-    format = response_model.model_tool_json_format_definition(api="chat.completions")
+    format = response_model.model_tool_format(api="chat.completions")
     response = openai_client.chat.completions.create(
         messages=conversation,
         model="gpt-4.1",
@@ -449,7 +449,7 @@ def assistant_debug_until_correct[T: BaseFunctionToolModel[Any, Any]](
 
     # 1. Request an LLM response, and append it to the conversation.
 
-    format = response_model.model_tool_json_format_definition(api="responses")
+    format = response_model.model_tool_format(api="responses")
     response = openai_client.responses.create(
         input=conversation,
         model="gpt-4.1",
@@ -795,7 +795,7 @@ async def assistant_debug_until_correct[T: BaseFunctionToolModel[Any, Any]](
 
     # 1. Request an LLM response, and append it to the conversation.
 
-    format = response_model.model_tool_json_format_definition(api="chat.completions")
+    format = response_model.model_tool_format(api="chat.completions")
     response = await openai_client.chat.completions.create(
         messages=conversation,
         model="gpt-4.1",
@@ -988,7 +988,7 @@ async def assistant_debug_until_correct[T: BaseFunctionToolModel[Any, Any]](
 
     # 1. Request an LLM response, and append it to the conversation.
 
-    format = response_model.model_tool_json_format_definition(api="responses")
+    format = response_model.model_tool_format(api="responses")
     response = await openai_client.responses.create(
         input=conversation,
         model="gpt-4.1",
@@ -1176,7 +1176,7 @@ producing a text response.
 
     - `model_tool_definition(cls, api: "chat.completions" | "responses")`
         - Item to go in the `tools` array param to the OpenAI API.
-    - `model_tool_json_format_definition(cls, api: "chat.completions" | "responses")`
+    - `model_tool_format(cls, api: "chat.completions" | "responses")`
         - Structured Outputs format definition for the `response_format` and `text.format` params
           in the Chat Completions and Responses APIs respectively.
 

@@ -35,7 +35,7 @@ def assistant_debug_until_correct[T: BaseFunctionToolModel[Any, Any]](
 
     # 1. Request an LLM response, and append it to the conversation.
 
-    format = response_model.model_tool_json_format_definition(api="responses")
+    format = response_model.model_tool_format(api="responses")
     response = openai_client.responses.create(
         input=conversation,
         model="gpt-4.1",

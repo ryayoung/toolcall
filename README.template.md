@@ -148,7 +148,7 @@ producing a text response.
 
     - `model_tool_definition(cls, api: "chat.completions" | "responses")`
         - Item to go in the `tools` array param to the OpenAI API.
-    - `model_tool_json_format_definition(cls, api: "chat.completions" | "responses")`
+    - `model_tool_format(cls, api: "chat.completions" | "responses")`
         - Structured Outputs format definition for the `response_format` and `text.format` params
           in the Chat Completions and Responses APIs respectively.
 

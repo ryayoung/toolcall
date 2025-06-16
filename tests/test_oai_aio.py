@@ -16,8 +16,8 @@ def test_definition():
 
     tool_def_chat = Tool.model_tool_definition(api="chat.completions")
     tool_def_resp = Tool.model_tool_definition(api="responses")
-    tool_def_json_chat = Tool.model_tool_json_format_definition(api="chat.completions")
-    tool_def_json_resp = Tool.model_tool_json_format_definition(api="responses")
+    tool_def_json_chat = Tool.model_tool_format(api="chat.completions")
+    tool_def_json_resp = Tool.model_tool_format(api="responses")
     _ = Tool.model_tool_pretty_definition()
 
     group = FunctionToolGroup[None, None].from_list([Tool])

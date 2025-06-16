@@ -166,24 +166,24 @@ class BaseFunctionToolModel[ContextIn, ContextOut](pydantic.BaseModel):
 
     @overload
     @classmethod
-    def model_tool_json_format_definition(
+    def model_tool_format(
         cls, api: Literal["responses"]
     ) -> ResponseFormatTextJSONSchemaConfigParam: ...
 
     @overload
     @classmethod
-    def model_tool_json_format_definition(
+    def model_tool_format(
         cls, api: Literal["chat.completions"]
     ) -> ResponseFormatJSONSchema: ...
 
     @overload
     @classmethod
-    def model_tool_json_format_definition(
+    def model_tool_format(
         cls, api: Literal["chat.completions", "responses"]
     ) -> ResponseFormatTextJSONSchemaConfigParam | ResponseFormatJSONSchema: ...
 
     @classmethod
-    def model_tool_json_format_definition(
+    def model_tool_format(
         cls, api: Literal["chat.completions", "responses"]
     ) -> ResponseFormatTextJSONSchemaConfigParam | ResponseFormatJSONSchema:
         """
@@ -192,8 +192,8 @@ class BaseFunctionToolModel[ContextIn, ContextOut](pydantic.BaseModel):
         """
         std = cls.model_tool_standard_definition()
         if api == "responses":
-            return std.json_format_def_for_responses_api()
-        return std.json_format_def_for_chat_completions_api()
+            return std.format_for_responses_api()
+        return std.format_for_chat_completions_api()
 
     @classmethod
     def model_tool_pretty_definition(cls) -> str:

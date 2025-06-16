@@ -31,6 +31,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=25.1.0",
+    "jinja2>=3.1.6",
     "pyright>=1.1.402",
     "pytest>=8.4.0",
     "pytest-cov>=6.2.1",
@@ -47,7 +48,9 @@ packages = ["toolcall"]
 [tool.taskipy.tasks]
 format = "ruff format"
 typecheck = "pyright"
+generate = "uv run generate_modules.py && uv run generate_readme.py"
 tests = "pytest --cov=toolcall --cov-branch -vvs"
+all = "uv run task generate && uv run task format && uv run task typecheck && uv run task tests"
 
 [tool.pyright]
 typeCheckingMode = "strict"

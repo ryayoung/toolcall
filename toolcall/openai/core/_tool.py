@@ -1,3 +1,4 @@
+# File generated from its async equivalent, toolcall/openai/aio/_tool.py
 from typing import Any, Callable, Literal, ClassVar, overload
 from textwrap import dedent
 import pydantic

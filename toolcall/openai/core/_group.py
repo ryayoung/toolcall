@@ -1,3 +1,4 @@
+# File generated from its async equivalent, toolcall/openai/aio/_group.py
 from typing import Literal, Sequence, overload
 from openai.types.chat import ChatCompletionToolParam
 from openai.types.responses import FunctionToolParam

@@ -1,3 +1,4 @@
+# File generated from its async equivalent, toolcall/openai/aio/__init__.py
 from .._result import *
 from .._call import *
 from .._definition import *

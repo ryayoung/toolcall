@@ -184,7 +184,6 @@ producing a text response.
 
     - `model_tool_name(cls) -> str`
     - `model_tool_json_schema(cls) -> dict`
-    - `model_tool_pretty_definition(cls) -> str`
 
 ---
 

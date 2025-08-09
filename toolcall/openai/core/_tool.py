@@ -195,10 +195,3 @@ class BaseFunctionToolModel[ContextIn, ContextOut](pydantic.BaseModel):
         if api == "responses":
             return std.format_for_responses_api()
         return std.format_for_chat_completions_api()
-
-    @classmethod
-    def model_tool_pretty_definition(cls) -> str:
-        """
-        FOR DEBUGGING ONLY, get a pretty representation of the tool definition.
-        """
-        return f"{cls.__name__}({cls.model_tool_standard_definition().to_pretty()})"

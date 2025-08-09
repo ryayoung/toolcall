@@ -81,13 +81,3 @@ class FunctionToolGroup[ContextIn, ContextOut](
         Tool definitions for the `tools` array parameter in the API.
         """
         return [tool.model_tool_definition(api) for tool in self.values()]
-
-    def pretty_definition(self) -> str:
-        """
-        For development, get a pretty representation of the tool definitions.
-        """
-        from textwrap import indent
-
-        definitions = [c.model_tool_pretty_definition() for c in self.values()]
-        definition = indent(",\n".join(definitions), " " * 4)
-        return f"{type(self).__name__}([\n{definition}\n])"

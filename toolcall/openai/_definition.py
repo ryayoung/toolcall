@@ -72,17 +72,3 @@ class StandardToolDefinition(BaseModel):
             "description": self.description,
             "strict": self.strict,
         }
-
-    def to_pretty(self) -> str:
-        """For debugging purposes, get a pretty representation of the data."""
-        definition = self.model_dump_json(indent=4)
-
-        # If available, use black, since it's nicer than default json indentation.
-        try:
-            import black
-
-            definition = black.format_str(definition, mode=black.Mode()).strip()
-        except:  # pragma: no cover
-            pass
-
-        return definition

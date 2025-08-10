@@ -63,7 +63,7 @@ def test_definition():
         ),
         StandardCustomToolDefinition(
             name="1",
-            description="1",
+            description="",
             format=StandardCustomToolTextFormat(),
         ),
         StandardCustomToolDefinition(

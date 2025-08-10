@@ -120,10 +120,9 @@ class StandardCustomToolDefinition(BaseModel):
         """
         Tool definition for the `tools` array in the Chat Completions API
         """
-        custom: Custom = {
-            "name": self.name,
-            "description": self.description,
-        }
+        custom: Custom = {"name": self.name}
+        if self.description:
+            custom["description"] = self.description
         if (fmt := self.format) is not None:
             if fmt.type == "text":
                 custom["format"] = {"type": "text"}
@@ -144,8 +143,9 @@ class StandardCustomToolDefinition(BaseModel):
         custom: CustomToolParam = {
             "type": "custom",
             "name": self.name,
-            "description": self.description,
         }
+        if self.description:
+            custom["description"] = self.description
         if (fmt := self.format) is not None:
             if fmt.type == "text":
                 custom["format"] = {"type": "text"}

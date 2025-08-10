@@ -51,6 +51,140 @@ basic problems that everyone has, and do so without compromise.
 - You define, dispatch, and handle function tool calls yourself:
     - ✅ You **should** be using `toolcall`.
 
+---
+
+
+
+```python
+# examples/aio/intro.py
+from typing import Literal
+from toolcall.openai.aio import (
+    BaseFunctionToolModel,
+    BaseCustomToolModel,
+    ToolGroup,
+)
+
+
+# A `type="custom"` tool that takes arbitrary text input
+class bio(BaseCustomToolModel[None, None]):
+    """Saves a memory about the user."""
+
+    async def model_tool_handler(self, _: None):
+        print(f"LLM gave us '{self.input}'...")
+        return f"Memory updated.", None
+
+
+# A `type="custom"` tool that takes text input, constrained by regex.
+class timestamp(BaseCustomToolModel[None, None]):
+    """Saves a timestamp in ISO 24-hr format."""
+
+    model_tool_format = {
+        "type": "grammar",
+        "syntax": "regex",
+        "definition": r"^\d{4}-\d{2}-\d{2}T\d{2}$",
+    }
+
+    async def model_tool_handler(self, _: None):
+        print(f'"LLM gave us {self.input}..."')
+        return f"Timestamp saved.", None
+
+
+# A `type="function"` tool that takes a JSON object input.
+class SayHelloFunctionTool(BaseFunctionToolModel[None, None]):
+    """Say hello to someone."""
+
+    name: Literal["Alice", "Jeff"]
+    """Name of the person to greet."""
+
+    model_tool_custom_name = "say_hello"
+
+    async def model_tool_handler(self, _: None):
+        return f"Message delivered to {self.name}.", None
+
+
+# Container for our tools that can generate the `tools` array for API calls,
+# and dispatch tool calls to the correct tool in a type-safe manner.
+tool_group = ToolGroup.from_list([bio, timestamp, SayHelloFunctionTool])
+
+import json
+
+for tool_def in tool_group.tool_definitions(api="responses"):
+    print(json.dumps(tool_def, indent=2))
+
+
+from openai import AsyncOpenAI
+
+
+async def main():
+    client = AsyncOpenAI()
+    response = await client.responses.create(
+        input="Use the timestamp tool to save a timestamp for August 7th 2025 at 10AM.",
+        model="gpt-5",
+        tools=tool_group.tool_definitions(api="responses"),
+    )
+    # Blindly assuming it gave us a tool call...
+    tool_call = response.output[-1]
+    assert tool_call.type == "custom_tool_call" or tool_call.type == "function_call"
+
+    tool_results = await tool_group.run_tool_calls([tool_call], None)
+    print(json.dumps(tool_results[0].output_item, indent=2))
+
+
+import asyncio
+
+asyncio.run(main())
+```
+
+
+
+Output:
+
+```json
+{
+  "type": "custom",
+  "name": "bio",
+  "description": "Saves a memory about the user."
+}
+{
+  "type": "custom",
+  "name": "timestamp",
+  "description": "Saves a timestamp in ISO 24-hr format.",
+  "format": {
+    "type": "grammar",
+    "syntax": "regex",
+    "definition": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}$"
+  }
+}
+{
+  "type": "function",
+  "name": "say_hello",
+  "description": "Say hello to someone.",
+  "parameters": {
+    "properties": {
+      "name": {
+        "description": "Name of the person to greet.",
+        "enum": [
+          "Alice",
+          "Jeff"
+        ],
+        "title": "Name",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "strict": false
+}
+"LLM gave us 2025-08-07T10..."
+{
+  "type": "custom_tool_call_output",
+  "call_id": "call_3pmTWat0nDeHSOxfcA2jVSPn",
+  "output": "Timestamp saved."
+}
+```
 
 <br>
 
@@ -198,12 +332,12 @@ class StockPriceTool(BaseFunctionToolModel[int, float]):
         return HandlerResult(result_content=result, context=1.234)
 
 
-from toolcall.openai.core import FunctionToolGroup
+from toolcall.openai.core import ToolGroup
 
 # A simple mapping to store tool classes. Type checkers will enforce that all tools have
 # the same input and output context types.
 # That's why we cannot include `say_hello` here.
-tool_group = FunctionToolGroup.from_list([GetWeatherTool, StockPriceTool])
+tool_group = ToolGroup.from_list([GetWeatherTool, StockPriceTool])
 
 
 def print_messages(messages: list[Any]) -> None:
@@ -326,7 +460,8 @@ def assistant_take_turn(conversation: list[ChatCompletionMessageParam]) -> None:
     if not message.tool_calls:
         return
 
-    results = [say_hello.model_tool_run_tool_call(c, None) for c in message.tool_calls]
+    calls = [tc for tc in message.tool_calls if tc.type == "function"]
+    results = [say_hello.model_tool_run_tool_call(c, None) for c in calls]
     conversation.extend([res.tool_message for res in results])
 
     # 3. Since there were tool calls, this turn isn't finished yet. We need to
@@ -732,12 +867,12 @@ class StockPriceTool(BaseFunctionToolModel[int, float]):
         return HandlerResult(result_content=result, context=1.234)
 
 
-from toolcall.openai.aio import FunctionToolGroup
+from toolcall.openai.aio import ToolGroup
 
 # A simple mapping to store tool classes. Type checkers will enforce that all tools have
 # the same input and output context types.
 # That's why we cannot include `say_hello` here.
-tool_group = FunctionToolGroup.from_list([GetWeatherTool, StockPriceTool])
+tool_group = ToolGroup.from_list([GetWeatherTool, StockPriceTool])
 
 
 def print_messages(messages: list[Any]) -> None:
@@ -863,8 +998,9 @@ async def assistant_take_turn(conversation: list[ChatCompletionMessageParam]) ->
     if not message.tool_calls:
         return
 
+    calls = [tc for tc in message.tool_calls if tc.type == "function"]
     results = await asyncio.gather(
-        *[say_hello.model_tool_run_tool_call(c, None) for c in message.tool_calls]
+        *[say_hello.model_tool_run_tool_call(c, None) for c in calls]
     )
     conversation.extend([res.tool_message for res in results])
 

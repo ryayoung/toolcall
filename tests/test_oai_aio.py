@@ -1,11 +1,13 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 import pytest
 import asyncio
 from openai import OpenAI
 from toolcall.openai.aio import (
+    StandardCustomToolTextFormat,
     StandardToolCall,
     BaseFunctionToolModel,
-    FunctionToolGroup,
+    BaseCustomToolModel,
+    ToolGroup,
     ErrorForLLMToSee,
 )
 
@@ -19,7 +21,7 @@ def test_definition():
     tool_def_json_chat = Tool.model_tool_format(api="chat.completions")
     tool_def_json_resp = Tool.model_tool_format(api="responses")
 
-    group = FunctionToolGroup[None, None].from_list([Tool])
+    group = ToolGroup[None, None].from_list([Tool])
 
     tool_defs_chat = group.tool_definitions(api="chat.completions")
     tool_defs_resp = group.tool_definitions(api="responses")
@@ -73,16 +75,13 @@ def test_config():
     assert definition.description == "custom description"
 
 
-def test_handler():
+def test_func_tool_handler():
     async def main():
         class NotImplementedTool(BaseFunctionToolModel[None, None]):
             x: int = 0
 
-        group = FunctionToolGroup.from_list([NotImplementedTool])
-
-        @group.add_tool
         class Tool(BaseFunctionToolModel[None, None]):
-            x: int = 0
+            x: Literal[0, 1, 2, 3] = 0
 
             async def model_tool_handler(self, _) -> tuple[str, None]:
                 if self.x == 1:
@@ -96,29 +95,114 @@ def test_handler():
                     return "hi", None, None  # type: ignore
                 return "hi", None
 
-        group.add_tool(Tool)
+        group = ToolGroup.from_list([NotImplementedTool, Tool])
 
-        def make_call(args: str) -> StandardToolCall:
-            return StandardToolCall(id="", name="Tool", arguments=args)
+        def make_call(name: str, input: str) -> StandardToolCall:
+            return StandardToolCall(type="function", id="", name=name, input=input)
 
         await group.run_tool_calls(
             [
-                make_call("{}"),
-                StandardToolCall(id="", name="INVALID", arguments="{}"),
-                make_call('{"x": "foo"}'),
-                make_call('{"x": 1}'),
+                make_call("Tool", "{}"),
+                make_call("INVALID", "{}"),
+                make_call("Tool", '{"x": 4}'),
+                make_call("Tool", '{"x": 1}'),
             ],
             None,
         )
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(TypeError):
+            await group.run_tool_call(make_call("Tool", '{"x": 2}'), None)
+        with pytest.raises(TypeError):
+            await group.run_tool_call(make_call("Tool", '{"x": 3}'), None)
+
+        with pytest.raises(ValueError):
             await group.run_tool_call(
-                StandardToolCall(id="", name="NotImplementedTool", arguments="{}"),
+                StandardToolCall(type="custom", id="", name="Tool", input=""),
                 None,
             )
+
+        with pytest.raises(NotImplementedError):
+            await group.run_tool_call(
+                make_call("NotImplementedTool", "{}"),
+                None,
+            )
+
+    asyncio.run(main())
+
+
+def test_custom_tool_handler():
+    async def main():
+        class InvalidFormatTool(BaseCustomToolModel[None, None]):
+            model_tool_format = {"type": "invalid"}  # pyright: ignore[reportAssignmentType]
+
+        with pytest.raises(ValueError):
+            _ = InvalidFormatTool.model_tool_definition(api="responses")
+
+        class StandardFormatTool(BaseCustomToolModel[None, None]):
+            model_tool_format = StandardCustomToolTextFormat()
+
+        class TextFormatTool(BaseCustomToolModel[None, None]):
+            model_tool_format = {"type": "text"}
+
+        class ExtraFieldTool(BaseCustomToolModel[None, None]):
+            extra_field: str = "extra"
+
+        class NotImplementedTool(BaseCustomToolModel[None, None]):
+            pass
+
+        class Tool(BaseCustomToolModel[None, None]):
+            input: Literal["0", "1", "2", "3"] = "0"
+
+            async def model_tool_handler(self, _) -> tuple[str, None]:
+                if self.input == "1":
+                    # except branch
+                    raise ErrorForLLMToSee("hi from error")
+                if self.input == "2":
+                    # TypeError: not a tuple
+                    return "hi"  # type: ignore
+                if self.input == "3":
+                    # TypeError: too long
+                    return "hi", None, None  # type: ignore
+                return "hi", None
+
+        with pytest.raises(ValueError):
+            group = ToolGroup.from_list([Tool, Tool])
+
+        group = ToolGroup.from_list(
+            [
+                StandardFormatTool,
+                TextFormatTool,
+                ExtraFieldTool,
+                NotImplementedTool,
+                Tool,
+            ]
+        )
+        _ = group.tool_definitions(api="responses")
+        _ = group.tool_definitions(api="chat.completions")
+
+        def make_call(name: str, input: str) -> StandardToolCall:
+            return StandardToolCall(type="custom", id="", name=name, input=input)
+
+        await group.run_tool_calls(
+            [
+                make_call("Tool", "0"),
+                make_call("INVALID", "0"),
+                make_call("Tool", "4"),
+                make_call("Tool", "1"),
+            ],
+            None,
+        )
         with pytest.raises(TypeError):
-            await group.run_tool_call(make_call('{"x": 2}'), None)
+            await group.run_tool_call(make_call("Tool", "2"), None)
         with pytest.raises(TypeError):
-            await group.run_tool_call(make_call('{"x": 3}'), None)
+            await group.run_tool_call(make_call("Tool", "3"), None)
+        with pytest.raises(ValueError):
+            await group.run_tool_call(make_call("ExtraFieldTool", "0"), None)
+
+        with pytest.raises(NotImplementedError):
+            await group.run_tool_call(
+                make_call("NotImplementedTool", "0"),
+                None,
+            )
 
     asyncio.run(main())
 
@@ -129,6 +213,7 @@ from examples.aio import (
     chat_group,
     chat_output,
     chat_tool,
+    intro,
     resp_group,
     resp_output,
     resp_tool,
@@ -141,6 +226,7 @@ def test_examples():
             chat_group.main(),
             chat_output.main(),
             chat_tool.main(),
+            intro.main(),
             resp_group.main(),
             resp_output.main(),
             resp_tool.main(),

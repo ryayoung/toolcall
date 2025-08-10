@@ -1,8 +1,9 @@
-from typing import Annotated, Literal, NamedTuple, TYPE_CHECKING
+from typing import Annotated, Literal, NamedTuple
 from dataclasses import dataclass
 import pydantic
 from openai.types.chat import ChatCompletionToolMessageParam
 from openai.types.responses.response_input_param import FunctionCallOutput
+from openai.types.responses import ResponseCustomToolCallOutputParam
 
 __all__ = [
     "ErrorForLLMToSee",
@@ -11,9 +12,6 @@ __all__ = [
     "ToolCallSuccess",
     "ToolCallFailure",
     "ToolCallResult",
-    # Deprecated
-    "ToolErrorMessageForLLMToSee",
-    "ToolHandlerResult",
 ]
 
 
@@ -42,6 +40,7 @@ type ToolCallFailReason = Literal[
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class _BaseToolCallResult:
+    type: Literal["custom", "function"]
     call_id: str
     result_content: str
 
@@ -57,13 +56,19 @@ class _BaseToolCallResult:
         }
 
     @property
-    def output_item(self) -> FunctionCallOutput:
+    def output_item(self) -> FunctionCallOutput | ResponseCustomToolCallOutputParam:
         """
         For the Responses API: Function call output item param.
         """
+        if self.type == "function":
+            return {
+                "type": "function_call_output",
+                "call_id": self.call_id,
+                "output": self.result_content,
+            }
         return {
+            "type": "custom_tool_call_output",
             "call_id": self.call_id,
-            "type": "function_call_output",
             "output": self.result_content,
         }
 
@@ -97,16 +102,3 @@ class ToolCallFailure(_BaseToolCallResult):
 type ToolCallResult[ContextOut] = Annotated[
     ToolCallSuccess[ContextOut] | ToolCallFailure, pydantic.Discriminator("fail_reason")
 ]
-
-
-if TYPE_CHECKING:
-    from typing_extensions import deprecated
-
-    @deprecated("Renamed ErrorForLLMToSee")
-    class ToolErrorMessageForLLMToSee(ErrorForLLMToSee): ...
-
-    @deprecated("Renamed HandlerResult")
-    class ToolHandlerResult[Out](HandlerResult[Out]): ...
-else:
-    ToolErrorMessageForLLMToSee = ErrorForLLMToSee
-    ToolHandlerResult = HandlerResult

@@ -125,12 +125,12 @@ class StockPriceTool(BaseFunctionToolModel[int, float]):
         return HandlerResult(result_content=result, context=1.234)
 
 
-from toolcall.openai.core import FunctionToolGroup
+from toolcall.openai.core import ToolGroup
 
 # A simple mapping to store tool classes. Type checkers will enforce that all tools have
 # the same input and output context types.
 # That's why we cannot include `say_hello` here.
-tool_group = FunctionToolGroup.from_list([GetWeatherTool, StockPriceTool])
+tool_group = ToolGroup.from_list([GetWeatherTool, StockPriceTool])
 
 
 def print_messages(messages: list[Any]) -> None:

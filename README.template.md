@@ -49,6 +49,58 @@ basic problems that everyone has, and do so without compromise.
 - You define, dispatch, and handle function tool calls yourself:
     - ✅ You **should** be using `toolcall`.
 
+---
+
+{{examples['aio.intro']}}
+
+Output:
+
+```json
+{
+  "type": "custom",
+  "name": "bio",
+  "description": "Saves a memory about the user."
+}
+{
+  "type": "custom",
+  "name": "timestamp",
+  "description": "Saves a timestamp in ISO 24-hr format.",
+  "format": {
+    "type": "grammar",
+    "syntax": "regex",
+    "definition": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}$"
+  }
+}
+{
+  "type": "function",
+  "name": "say_hello",
+  "description": "Say hello to someone.",
+  "parameters": {
+    "properties": {
+      "name": {
+        "description": "Name of the person to greet.",
+        "enum": [
+          "Alice",
+          "Jeff"
+        ],
+        "title": "Name",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "strict": false
+}
+"LLM gave us 2025-08-07T10..."
+{
+  "type": "custom_tool_call_output",
+  "call_id": "call_3pmTWat0nDeHSOxfcA2jVSPn",
+  "output": "Timestamp saved."
+}
+```
 
 <br>
 

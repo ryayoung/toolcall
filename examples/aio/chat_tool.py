@@ -35,8 +35,9 @@ async def assistant_take_turn(conversation: list[ChatCompletionMessageParam]) ->
     if not message.tool_calls:
         return
 
+    calls = [tc for tc in message.tool_calls if tc.type == "function"]
     results = await asyncio.gather(
-        *[say_hello.model_tool_run_tool_call(c, None) for c in message.tool_calls]
+        *[say_hello.model_tool_run_tool_call(c, None) for c in calls]
     )
     conversation.extend([res.tool_message for res in results])
 
